@@ -15,7 +15,6 @@ classdef MromiDirector
     
     methods %% GET
         function g = get.sessionData(this)
-            assert(~isempty(this.sessionData_));
             g = this.sessionData_;
         end
     end
@@ -39,34 +38,33 @@ classdef MromiDirector
         end
         function oef  = constructOefMap(this)
         end
-        function map  = constructPetObsMap(this, varargin)
-            %% CONSTRUCTPETOBSMAP
-            %  returns pet, an mlpet.PETImagingContext
+        function obs  = constructPetObsMap(this, varargin)
+            ip = inputParser;
+            addParameter(ip, 'sessionData', this.sessionData, @(x) isa(x, 'mlpipeline.ISessionData'));
+            parse(ip, varargin{:}); 
+            this.sessionData_ = ip.Results.sessionData;
             
+            scanB = this.scannerBuilder(varargin{:});
+            scanB = scanB.buildPetObsMap; 
+            obs   = scanB.product;
+        end
+        function cbf  = constructCbfMap(this, varargin)
+            import mlpet.*;
             ip = inputParser;
             addParameter(ip, 'sessionData', this.sessionData, @(x) isa(x, 'mlpipeline.ISessionData'));
             parse(ip, varargin{:});            
             this.sessionData_ = ip.Results.sessionData;
+            this.sessionData_.tracer = 'HO';
             
-            mmrb = mlfourdfp.MMRBuilder('sessionData', this.sessionData);
-            mmrb = mmrb.buildPetObsMap;
-            map  = mmrb.product;
-        end
-        function map  = constructCbfMap(this, varargin)
-            import mlpet.*;
-            sessd = this.sessionData;
-            sessd.vnumber = 1;
-            sessd.snumber = 1;
-            sessd.tracer  = 'HO';
+            artB = ArterialSamplingBuilder('sessionData', this.sessionData);
+            artB = artB.buildAifData;
             
-            obsB = this.constructPetObsMap(varargin{:});
+            scanB = ScannerBuilder('sessionData', this.sessionData);
+            scanB = scanB.buildPetObsMap('aifData', artB.product);
             
-            artB = ArterialSamplingBuilder('sessionData', sessd);
-            artB = artB.buildArterialSampling;
-            
-            cbfB = CbfBuilder('sessionData', sessd);
-            cbfB = cbfB.buildCbfMap(obsB.product, artB.product);
-            map  = cbfB.product;
+            cbfB = CbfBuilder('sessionData', this.sessionData);
+            cbfB = cbfB.buildHerscCbfMap(artB.product, scanB.product);
+            cbf  = cbfB.product;
         end
         function cbv  = constructCbvMap(this)
         end

@@ -26,7 +26,7 @@ classdef Test_MromiDirector < matlab.unittest.TestCase
             this.verifyClass(this.testObj.sessionData, 'mlraichle.SynthSessionData');
         end
         function test_constructOefAtlas(this)
-            oef = testObj.constructOefAtlas('typ', 'mlfourd.ImagingContext');
+            oef = this.testObj.constructOefAtlas('typ', 'mlfourd.ImagingContext');
             oef.view;
         end
         function test_constructOefMap(this)
@@ -41,8 +41,8 @@ classdef Test_MromiDirector < matlab.unittest.TestCase
             petObs.view;
         end
         function test_constructCbfMap(this)
-            cbf = this.testObj.constructCbfMap('typ', 'mlfourd.ImagingContext');
-            cbf.view;
+            this.testObj = this.testObj.constructCbfMap;
+            this.testObj.product.view;
         end
         function test_constructCbvMap(this)
             cbv = this.testObj.constructCbvMap('typ', 'mlfourd.ImagingContext');
@@ -52,13 +52,19 @@ classdef Test_MromiDirector < matlab.unittest.TestCase
 
  	methods (TestClassSetup)
 		function setupMromiDirector(this)
- 			import mlan.*;
-            this.studyd = mlraichle.SynthStudyData;
-            this.sessd = mlraichle.SynthSessionData( ...
+            import mlderdeyn.*;
+            this.studyd = StudyDataSingleton.instance;
+            this.sessd = SessionData( ...
                 'studyData', this.studyd, ...
-                'sessionPath', fullfile(getenv('PPG'), 'jjleeSynth', 'HYGLY09', ''));
- 			this.testObj_ = MromiDirector( ...
-                'sessionData', this.sessd);
+                'sessionPath', fullfile(this.studyd.subjectsDir, 'mm01-007_p7267_2008jun16', ''));
+ 			%import mlan.*;
+            %this.studyd = mlraichle.SynthStudyData;
+            %this.sessd = mlraichle.SynthSessionData( ...
+            %    'studyData', this.studyd, ...
+            %    'sessionPath', fullfile(getenv('PPG'), 'jjleeSynth', 'HYGLY09', ''), ...
+            %    'vnumber', 1, ...
+            %    'snumber', 1);
+ 			this.testObj_ = MromiDirector('sessionData', this.sessd);
  		end
 	end
 
