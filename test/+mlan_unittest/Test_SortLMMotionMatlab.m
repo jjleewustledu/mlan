@@ -61,7 +61,7 @@ classdef Test_SortLMMotionMatlab < matlab.unittest.TestCase
             this.verifyEqual(this.testObj.getInterfileTagValue(mhdr, '%data set [1]'), ...
                 '{1000000000,Motion-LM-00-umap-hardware.v.hdr,UNKNOWN}');
         end
-        function test_save_hdr(this)
+        function test_save_lhdr(this)
         end
         function test_save_mhdr(this)
             timestr = datestr(now, 'HH:MM:SS');

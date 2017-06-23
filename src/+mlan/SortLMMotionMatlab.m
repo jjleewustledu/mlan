@@ -120,7 +120,7 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
             
             this.dprintf('plot', 'minindL = %g, maxindL = %g', this.minindL, this.maxindL);
         end
-        function save_hdr(this, hdrout, fileout, injection_start_time, tprompts, trandoms)
+        function save_lhdr(this, hdrout, fileout, injection_start_time, tprompts, trandoms)
             %% SAVE_HDR saves Siemens sinogram header
             %  @params hdrout is char.
             %  @params fileout is char.
@@ -134,7 +134,7 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
             addRequired(ip, 'trandoms', @isnumeric);
             parse(ip, hdrout, fileout, injection_start_time);
             
-            this.dprintf('save_hdr', sprintf('Writing sinogram header :%s', hdrout)); 
+            this.dprintf('save_lhdr', sprintf('Writing sinogram header :%s', hdrout)); 
             if (2 == exist(hdrout, 'file'))
                 movefile(hdrout, this.appendFileprefix(hdrout, ['_backup' datestr(now,30)]));
             end
@@ -302,7 +302,7 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
                     
                     this.fduration = this.tickperbin(ibb);                    
                     fileouthdr = [this.dir0 this.studyName strtrim(sprintf('%3.3i', ibb-1)) '.s.hdr'];
-                    this.save_hdr( fileouthdr, fileout, this.listmode.studyTime, ...
+                    this.save_lhdr( fileouthdr, fileout, this.listmode.studyTime, ...
                         this.total(prompts_), this.total(randoms_));
                     this.fstart = this.fstart + this.fstartinc;
                     if (ibb == 1)
@@ -488,9 +488,9 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
                 %% loop within buffer block
                 for ifl = 1:nlook
                     
-                    tagPacketBitL   = bitshift(arrayL(ifl), -31, 'uint32'); 
-                    tagTimeMarkerL  = bitshift(arrayL(ifl), -30, 'uint32'); 
-                    tagPhysioL      = bitshift(arrayL(ifl), -28, 'uint32'); 
+                    tagPacketBitL  = bitshift(arrayL(ifl), -31, 'uint32'); 
+                    tagTimeMarkerL = bitshift(arrayL(ifl), -30, 'uint32'); 
+                    tagPhysioL     = bitshift(arrayL(ifl), -28, 'uint32'); 
                     
                     %% prompts or randoms
                     if (tagPacketBitL == 0 && this.mrBinning_.hasTimeMarker)
@@ -617,7 +617,7 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
                             singles = bitand(arrayL(ifl), this.hex2long('7FFFF'), 'uint32');
                             %this.dprintf('SortLM_motion', 'Block and singles #s.... %i %i', block, singles
                             if (block < this.listmode.nbuckets)
-                                this.singles_rates(block) = singles;
+                                this.singles_rates(block+1) = singles;
                             end
                         end
                         
