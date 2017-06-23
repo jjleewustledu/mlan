@@ -20,6 +20,13 @@ classdef Test_SortLMMotionMatlab < matlab.unittest.TestCase
  	end
 
 	methods (Test)
+        function test_SortLM_motion(this)
+            this.testObj.SortLM_motion;
+        end
+        function test_mrBinning(this)
+        end
+        function test_petBinning(this)
+        end
         function test_lhdrParser(this)
             lhdr = mlsiemens.LhdrParser('fileprefix', 'Motion-LM-00-OP');
             this.verifyEqual(lhdr.parseSplitNumeric('!originating system'), 2008);
@@ -61,7 +68,7 @@ classdef Test_SortLMMotionMatlab < matlab.unittest.TestCase
             this.testObj.save_mhdr('test.mhdr', 1);
             this.testObj.save_mhdr('test.mhdr', 1);
             this.verifyEqual(length(mlsystem.DirTool('test*.mhdr')), 2); % ensure backup created
-            p = mlsiemens.MhdrParser.load('test');
+            p = mlsiemens.MhdrParser('fileprefix', 'test');
             p.parseSplitString('%comment', 'SMS-MI sinogram common attributes');
             p.parseSplitNumeric('!originating system', 2008);
             p.parseSplitString('%study date (yyyy:mm:dd)', datestr(now, 'yyyy:mm:dd'));

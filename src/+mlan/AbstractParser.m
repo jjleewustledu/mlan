@@ -39,19 +39,6 @@ classdef AbstractParser < mlan.AbstractIO
         this = loadx(filename, ext) % specifies multi-dottied file extensions
     end
     
-    methods (Static)
-        function obj  = long(obj)
-            %% LONG always returns 4-byte integers (int32)
-            
-            if (ischar(obj))
-                obj = int32(str2double(obj));
-            end
-            if (isfloat(obj))
-                obj = int32(obj);
-            end
-        end
-    end
-    
 	methods		
         function ch = char(this)
             ch = strjoin(this.cellContents_);
@@ -92,6 +79,7 @@ classdef AbstractParser < mlan.AbstractIO
     
     properties (Access = 'protected')
         cellContents_
+        fid_
     end
     
     methods (Static, Access = 'protected')

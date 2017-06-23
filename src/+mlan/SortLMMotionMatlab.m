@@ -7,7 +7,9 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
  	%% It was developed on Matlab 9.2.0.538062 (R2017a) for MACI64.  Copyright 2017 Richard Laforest and John Joowon Lee.
  	
     
-    properties (Constant)        
+    properties (Constant)  
+        BUFFER_LENGTH = 65536
+        DEBUG = true      
         TVEC_DIM = 2000
     end
 
@@ -25,8 +27,6 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
     
     properties (Dependent)
         dir0
-        filePTDl % *.l
-        filePTDhdr % *.hdr
         listmode
         mrBinning
         petBinning
@@ -41,13 +41,6 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
         
         function g = get.dir0(this)
             g = this.dir0_;
-        end
-        function g = get.filePTDhdr(this)
-            g = fullfile(this.dir0, [this.fileprefixPTD_ '.hdr']);
-            assert(2 == exist(g, 'file'), 'mlan:IOErr:fileNotFound', 'listmode header file not found, exiting...');
-        end
-        function g = get.filePTDl(this)
-            g = fullfile(this.dir0, [this.fileprefixPTD_ '.']);
         end
         function g = get.listmode(this)
             g = this.listmode_;
@@ -102,9 +95,9 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
             %plot(this.timepos(1:300), this.amin, this.timepos(1:300), this.amax);
             %filespec = dialog_pickfile(filter='*.dat', path=this.dir0)
             %if (strcmp(filespec, '')); stop; end
-            fid44 = fopen(filespec);
+            fid44 = fopen(fullfile(this.dir0, sprintf('%s_PETtime_%ims_%ims.dat', this.studyName, this.tstep, this.tstart0)), 'w');
             for ip = 1:Npts
-                fprintf( fid44, ip*this.tstep, this.timepos(ip), freq(ip), yf(ip));
+                fprintf( fid44, ip*this.tstep+this.tstart0, this.timepos(ip), freq(ip), yf(ip));
             end
             
             figure;
@@ -123,7 +116,9 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
             holdon;
             h2 = plot( this.tvecPT);
             ylabel(h1, 'tvecMR(0:200)');
-            ylabel(h2, 'tvecPT');            
+            ylabel(h2, 'tvecPT');      
+            
+            this.dprintf('plot', 'minindL = %g, maxindL = %g', this.minindL, this.maxindL);
         end
         function save_hdr(this, hdrout, fileout, injection_start_time, tprompts, trandoms)
             %% SAVE_HDR saves Siemens sinogram header
@@ -139,99 +134,99 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
             addRequired(ip, 'trandoms', @isnumeric);
             parse(ip, hdrout, fileout, injection_start_time);
             
-            this.dprintf('save_hdr', sprintf("Writing sinogram header :%s", hdrout)); 
+            this.dprintf('save_hdr', sprintf('Writing sinogram header :%s', hdrout)); 
             if (2 == exist(hdrout, 'file'))
                 movefile(hdrout, this.appendFileprefix(hdrout, ['_backup' datestr(now,30)]));
             end
             
             fid34 = fopen(hdrout);
-            fprintf( fid34, "!INTERFILE:=\n");
-            fprintf( fid34, "%%comment:=Created from listmode data\n");
-            fprintf( fid34, "!originating system:=2008\n");
-            fprintf( fid34, "%%SMS-MI header name space:=sinogram subheader\n");
-            fprintf( fid34, "%%SMS-MI version number:=3.4\n");
-            fprintf( fid34, "\n");
-            fprintf( fid34, "!GENERAL DATA:=\n");
-            fprintf( fid34, "%%listmode header file:=%s\n", sprintf(this.dir0, 'Motion-LM-00.hdr'));
-            fprintf( fid34, "%%listmode data file:=%s\n", sprintf(this.dir0, 'Motion-LM-00.l'));
-            fprintf( fid34, "!name of data file:=%s\n", this.basename(fileout));
-            fprintf( fid34, "  \n");
-            fprintf( fid34, "!GENERAL IMAGE DATA:=\n");
-            fprintf( fid34, "%%study date (yyyy:mm:dd):=%s\n", this.listmode.studyDate);
-            fprintf( fid34, "%%study time (hh:mm:ss GMT+00:00):=%s\n", this.listmode.studyTime);
-            fprintf( fid34, "isotope name:=F-18\n");
-            fprintf( fid34, "isotope gamma halflife (sec):=6586.2\n");
-            fprintf( fid34, "isotope branching factor:=1\n");
-            fprintf( fid34, "radiopharmaceutical:=FDG\n");
-            fprintf( fid34, "%%tracer injection date (yyyy:mm:dd):=%s\n", this.listmode.studyDate);
-            fprintf( fid34, "%%tracer injection time (hh:mm:ss GMT+00:00):=%s\n",injection_start_time);
-            fprintf( fid34, "tracer activity at time of injection (Bq):=3.7e+006\n");
-            fprintf( fid34, "relative time of tracer injection (sec):=0\n");
-            fprintf( fid34, "injected volume (ml):=0.0\n");
-            fprintf( fid34, "image data byte order:=LITTLEENDIAN\n");
-            fprintf( fid34, "%%patient orientation:=HFS\n");
-            fprintf( fid34, "!PET data type:=emission\n");
-            fprintf( fid34, "data format:=sinogram\n");
-            fprintf( fid34, "%%compression:=off\n");
-            fprintf( fid34, "%%compressor version:=1.1\n");
-            fprintf( fid34, "number format:=signed integer\n");
-            fprintf( fid34, "!number of bytes per pixel:=2\n");
-            fprintf( fid34, "number of dimensions:=3\n");
-            fprintf( fid34, "matrix axis label[1]:=sinogram projections\n");
-            fprintf( fid34, "matrix axis label[2]:=sinogram views\n");
-            fprintf( fid34, "matrix axis label[3]:=number of sinograms\n");
-            fprintf( fid34, "matrix size[1]:=%i\n", this.listmode.xdim);
-            fprintf( fid34, "matrix size[2]:=%i\n", this.listmode.ydim);
-            fprintf( fid34, "matrix size[3]:=%i\n", this.listmode.zdim);
-            fprintf( fid34, "scale factor (mm/pixel) [1]:=%i\n", this.xsize*10.);
-            fprintf( fid34, "scale factor (degree/pixel) [2]:=%i\n", 180./this.listmode.ydim);
-            fprintf( fid34, "scale factor (mm/pixel) [3]:=%i\n",this.zsize*10.);
-            fprintf( fid34, "horizontal bed translation:=stepped\n");
-            fprintf( fid34, "start horizontal bed position (mm):=-2\n");
-            fprintf( fid34, "end horizontal bed position (mm):=-2\n");
-            fprintf( fid34, "start vertical bed position (mm):=0.0\n");
-            fprintf( fid34, "%%axial compression:=1\n");
-            fprintf( fid34, "%%maximum ring difference:=%i\n", this.listmode.max_ring_difference);
-            fprintf( fid34, "number of rings:=%i\n", this.listmode.number_of_rings);
-            fprintf( fid34, "%%number of TOF time bins:=1\n");
-            fprintf( fid34, "%%TOF mashing factor:=1\n");
-            fprintf( fid34, "%%sinogram type:=step and shoot\n");
-            fprintf( fid34, "%%number of segments:=%i\n", this.listmode.nsegments);
-            fprintf( fid34, "%%segment table:=%s\n", this.listmode.segtable);
-            fprintf( fid34, "%%total number of sinograms:=%s\n",this.listmode.zdim);
-            fprintf( fid34, "number of energy windows:=1\n");
-            fprintf( fid34, "%%energy window lower level (keV) [1]:=430\n");
-            fprintf( fid34, "%%energy window upper level (keV) [1]:=610\n");
-            fprintf( fid34, "gantry tilt angle (degrees):=0.0\n");
-            fprintf( fid34, "%%coincidence window width (ns):=5.85938\n");
-            fprintf( fid34, "number of scan data types:=2\n");
-            fprintf( fid34, "scan data type description[1]:=prompts\n");
-            fprintf( fid34, "scan data type description[2]:=randoms\n");
-            fprintf( fid34, "data offset in bytes[1]:=0\n");
-            fprintf( fid34, "data offset in bytes[2]:=\n",this.long(this.listmode.xdim*this.listmode.ydim*this.listmode.zdim*2)); % this.listmode.xdim*this.listmode.ydim*this.listmode.zdim*2L
-            fprintf( fid34, "\n");
-            fprintf( fid34, "!IMAGE DATA DESCRIPTION:=\n");
-            fprintf( fid34, "!total number of data sets:=1\n");
-            fprintf( fid34, "total prompts:=%15i\n", this.long(tprompts));
-            fprintf( fid34, "%%total randoms:=%15i\n", this.long(trandoms));
-            fprintf( fid34, "%%total net trues:=%i\n", this.long(tprompts-trandoms));            
-            if (fix(float(this.fduration)/1000) > 2) % this one needs to be atleast 2 sec
-                fprintf( fid34, "!image duration (sec):=%s\n", strtrim(string(fix(float(this.fduration)/1000))));
+            fprintf( fid34, '!INTERFILE:=\n');
+            fprintf( fid34, '%%comment:=Created from listmode data\n');
+            fprintf( fid34, '!originating system:=2008\n');
+            fprintf( fid34, '%%SMS-MI header name space:=sinogram subheader\n');
+            fprintf( fid34, '%%SMS-MI version number:=3.4\n');
+            fprintf( fid34, '\n');
+            fprintf( fid34, '!GENERAL DATA:=\n');
+            fprintf( fid34, '%%listmode header file:=%s\n', sprintf(this.dir0, 'Motion-LM-00.hdr'));
+            fprintf( fid34, '%%listmode data file:=%s\n', sprintf(this.dir0, 'Motion-LM-00.l'));
+            fprintf( fid34, '!name of data file:=%s\n', this.basename(fileout));
+            fprintf( fid34, '  \n');
+            fprintf( fid34, '!GENERAL IMAGE DATA:=\n');
+            fprintf( fid34, '%%study date (yyyy:mm:dd):=%s\n', this.listmode.studyDate);
+            fprintf( fid34, '%%study time (hh:mm:ss GMT+00:00):=%s\n', this.listmode.studyTime);
+            fprintf( fid34, 'isotope name:=F-18\n');
+            fprintf( fid34, 'isotope gamma halflife (sec):=6586.2\n');
+            fprintf( fid34, 'isotope branching factor:=1\n');
+            fprintf( fid34, 'radiopharmaceutical:=FDG\n');
+            fprintf( fid34, '%%tracer injection date (yyyy:mm:dd):=%s\n', this.listmode.studyDate);
+            fprintf( fid34, '%%tracer injection time (hh:mm:ss GMT+00:00):=%s\n',injection_start_time);
+            fprintf( fid34, 'tracer activity at time of injection (Bq):=3.7e+006\n');
+            fprintf( fid34, 'relative time of tracer injection (sec):=0\n');
+            fprintf( fid34, 'injected volume (ml):=0.0\n');
+            fprintf( fid34, 'image data byte order:=LITTLEENDIAN\n');
+            fprintf( fid34, '%%patient orientation:=HFS\n');
+            fprintf( fid34, '!PET data type:=emission\n');
+            fprintf( fid34, 'data format:=sinogram\n');
+            fprintf( fid34, '%%compression:=off\n');
+            fprintf( fid34, '%%compressor version:=1.1\n');
+            fprintf( fid34, 'number format:=signed integer\n');
+            fprintf( fid34, '!number of bytes per pixel:=2\n');
+            fprintf( fid34, 'number of dimensions:=3\n');
+            fprintf( fid34, 'matrix axis label[1]:=sinogram projections\n');
+            fprintf( fid34, 'matrix axis label[2]:=sinogram views\n');
+            fprintf( fid34, 'matrix axis label[3]:=number of sinograms\n');
+            fprintf( fid34, 'matrix size[1]:=%i\n', this.listmode.xdim);
+            fprintf( fid34, 'matrix size[2]:=%i\n', this.listmode.ydim);
+            fprintf( fid34, 'matrix size[3]:=%i\n', this.listmode.zdim);
+            fprintf( fid34, 'scale factor (mm/pixel) [1]:=%i\n', this.xsize*10.);
+            fprintf( fid34, 'scale factor (degree/pixel) [2]:=%i\n', 180./this.listmode.ydim);
+            fprintf( fid34, 'scale factor (mm/pixel) [3]:=%i\n',this.zsize*10.);
+            fprintf( fid34, 'horizontal bed translation:=stepped\n');
+            fprintf( fid34, 'start horizontal bed position (mm):=-2\n');
+            fprintf( fid34, 'end horizontal bed position (mm):=-2\n');
+            fprintf( fid34, 'start vertical bed position (mm):=0.0\n');
+            fprintf( fid34, '%%axial compression:=1\n');
+            fprintf( fid34, '%%maximum ring difference:=%i\n', this.listmode.max_ring_difference);
+            fprintf( fid34, 'number of rings:=%i\n', this.listmode.number_of_rings);
+            fprintf( fid34, '%%number of TOF time bins:=1\n');
+            fprintf( fid34, '%%TOF mashing factor:=1\n');
+            fprintf( fid34, '%%sinogram type:=step and shoot\n');
+            fprintf( fid34, '%%number of segments:=%i\n', this.listmode.nsegments);
+            fprintf( fid34, '%%segment table:=%s\n', this.listmode.segtable);
+            fprintf( fid34, '%%total number of sinograms:=%s\n',this.listmode.zdim);
+            fprintf( fid34, 'number of energy windows:=1\n');
+            fprintf( fid34, '%%energy window lower level (keV) [1]:=430\n');
+            fprintf( fid34, '%%energy window upper level (keV) [1]:=610\n');
+            fprintf( fid34, 'gantry tilt angle (degrees):=0.0\n');
+            fprintf( fid34, '%%coincidence window width (ns):=5.85938\n');
+            fprintf( fid34, 'number of scan data types:=2\n');
+            fprintf( fid34, 'scan data type description[1]:=prompts\n');
+            fprintf( fid34, 'scan data type description[2]:=randoms\n');
+            fprintf( fid34, 'data offset in bytes[1]:=0\n');
+            fprintf( fid34, 'data offset in bytes[2]:=%i\n', this.listmode.xdim*this.listmode.ydim*this.listmode.zdim*2);
+            fprintf( fid34, '\n');
+            fprintf( fid34, '!IMAGE DATA DESCRIPTION:=\n');
+            fprintf( fid34, '!total number of data sets:=1\n');
+            fprintf( fid34, 'total prompts:=%15i\n', this.long(tprompts));
+            fprintf( fid34, '%%total randoms:=%15i\n', this.long(trandoms));
+            fprintf( fid34, '%%total net trues:=%i\n', this.long(tprompts-trandoms));            
+            if (fix(single(this.fduration)/1000) > 2) % this one needs to be atleast 2 sec
+                fprintf( fid34, '!image duration (sec):=%s\n', strtrim(string(fix(single(this.fduration)/1000))));
             else
-                fprintf( fid34, "!image duration (sec):=2\n");
+                fprintf( fid34, '!image duration (sec):=2\n');
             end
-            fprintf( fid34, "!image relative start time (sec):=%f8.1\n", float(this.fstart)/1000);
-            fprintf( fid34, "%%image duration from timing tags (msec):=%i\n", this.fduration);
-            fprintf( fid34, "%%GIM loss fraction:=1\n");
-            fprintf( fid34, "%%PDR loss fraction:=1\n");
-            fprintf( fid34, "\n");
-            fprintf( fid34, "%%DETECTOR BLOCK SINGLES:=\n");
-            fprintf( fid34, "%%number of buckets:=%15i\n", fix(this.listmode.nbuckets));
-            fprintf( fid34, "%%total uncorrected singles rate:=%s\n", strtrim(string(this.long(8*this.total(this.singles_rates)))));
+            fprintf( fid34, '!image relative start time (sec):=%f8.1\n', single(this.fstart)/1000);
+            fprintf( fid34, '%%image duration from timing tags (msec):=%i\n', this.fduration);
+            fprintf( fid34, '%%GIM loss fraction:=1\n');
+            fprintf( fid34, '%%PDR loss fraction:=1\n');
+            fprintf( fid34, '\n');
+            fprintf( fid34, '%%DETECTOR BLOCK SINGLES:=\n');
+            fprintf( fid34, '%%number of buckets:=%15i\n', fix(this.listmode.nbuckets));
+            fprintf( fid34, '%%total uncorrected singles rate:=%s\n', strtrim(string(this.long(8*this.total(this.singles_rates)))));
             for ibb = 1:this.listmode.nbuckets
-                fprintf( fid34, "%%bucket singles rate[%s]:=%s\n", strtrim(num2str(ibb)), strtrim(num2str(8*this.singles_rates(ibb))));
+                fprintf( fid34, '%%bucket singles rate[%s]:=%s\n', strtrim(num2str(ibb)), strtrim(num2str(8*this.singles_rates(ibb))));
             end            
-            fprintf( fid34, "\n");
+            fprintf( fid34, '\n');
             fclose(fid34);            
         end
         function save_mhdr(this, fbase, nframes)
@@ -251,42 +246,41 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
             end
             
             fid22 = fopen(filemhdr, 'w');            
-            fprintf( fid22, "!INTERFILE:=\n");
-            fprintf( fid22, "%%comment:=SMS-MI sinogram common attributes\n");
-            fprintf( fid22, "!originating system:= 2008\n");
-            fprintf( fid22, "%%SMS-MI header name space:=sinogram main header\n");
-            fprintf( fid22, "%%SMS-MI version number:=3.1\n");
-            fprintf( fid22, "\n");
-            fprintf( fid22, "!GENERAL DATA:=\n");
-            fprintf( fid22, "data description:=sinogram\n");
-            fprintf( fid22, "exam type:=wholebody\n");
-            fprintf( fid22, "%%study date (yyyy:mm:dd):= %s\n", this.listmode.studyDate);
-            fprintf( fid22, "%%study time (hh:mm:ss GMT+00:00):= %s\n",this.listmode.studyTime);
-            fprintf( fid22, "%%type of detector motion:=step and shoot\n");
-            fprintf( fid22, "\n");
-            fprintf( fid22, "%%DATA MATRIX DESCRIPTION:=\n");
-            fprintf( fid22, "number of time frames:=%i\n", nframes);
-            fprintf( fid22, "%%number of horizontal bed offsets:=1\n");
-            fprintf( fid22, "number of time windows:=1\n");
-            fprintf( fid22, "%%number of emission data types:=2\n");
-            fprintf( fid22, "%%emission data type description [1]:=prompts\n");
-            fprintf( fid22, "%%emission data type description [2]:=randoms\n");
-            fprintf( fid22, "%%number of transmission data types:=0\n");
-            fprintf( fid22, "%%scan direction:=out\n"); % Richard needed to check this.  Is it always the case?
-            fprintf( fid22, "\n");
-            fprintf( fid22, "%%DATA SET DESCRIPTION:=\n");
-            fprintf( fid22, "!total number of data sets:=%i\n", nframes);            
+            fprintf( fid22, '!INTERFILE:=\n');
+            fprintf( fid22, '%%comment:=SMS-MI sinogram common attributes\n');
+            fprintf( fid22, '!originating system:= 2008\n');
+            fprintf( fid22, '%%SMS-MI header name space:=sinogram main header\n');
+            fprintf( fid22, '%%SMS-MI version number:=3.1\n');
+            fprintf( fid22, '\n');
+            fprintf( fid22, '!GENERAL DATA:=\n');
+            fprintf( fid22, 'data description:=sinogram\n');
+            fprintf( fid22, 'exam type:=wholebody\n');
+            fprintf( fid22, '%%study date (yyyy:mm:dd):= %s\n', this.listmode.studyDate);
+            fprintf( fid22, '%%study time (hh:mm:ss GMT+00:00):= %s\n',this.listmode.studyTime);
+            fprintf( fid22, '%%type of detector motion:=step and shoot\n');
+            fprintf( fid22, '\n');
+            fprintf( fid22, '%%DATA MATRIX DESCRIPTION:=\n');
+            fprintf( fid22, 'number of time frames:=%i\n', nframes);
+            fprintf( fid22, '%%number of horizontal bed offsets:=1\n');
+            fprintf( fid22, 'number of time windows:=1\n');
+            fprintf( fid22, '%%number of emission data types:=2\n');
+            fprintf( fid22, '%%emission data type description [1]:=prompts\n');
+            fprintf( fid22, '%%emission data type description [2]:=randoms\n');
+            fprintf( fid22, '%%number of transmission data types:=0\n');
+            fprintf( fid22, '%%scan direction:=out\n'); % Richard needed to check this.  Is it always the case?
+            fprintf( fid22, '\n');
+            fprintf( fid22, '%%DATA SET DESCRIPTION:=\n');
+            fprintf( fid22, '!total number of data sets:=%i\n', nframes);            
             for iframes = 1:nframes
                 offset   = 30 + (iframes-1)*1000000;
-                files    = [fbase strtrim(sprintf('%3.3i', iframes-1)) ".s"];
-                fileshdr = [files ".hdr"];
-                fprintf( fid22, "%data set [%i]:={%i,%s,%s}\n", iframes, offset, fileshdr, files);
+                files    = [fbase strtrim(sprintf('%3.3i', iframes-1)) '.s'];
+                fileshdr = [files '.hdr'];
+                fprintf( fid22, '%data set [%i]:={%i,%s,%s}\n', iframes, offset, fileshdr, files);
             end            
-            fprintf( fid22, "\n");
+            fprintf( fid22, '\n');
             fclose(  fid22);            
         end
         function this = savingData(this)
-            
             this.dprintf('savingData', sprintf('Number of Prompts     = %i\n', this.nbprt));
             this.dprintf('savingData', sprintf('Number of Randoms     = %i\n', this.nbrnd));
             this.dprintf('savingData', sprintf('Number of Time Tags   = %i\n', this.nbttag));
@@ -295,10 +289,11 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
             
             if (this.saveSino)
                 for ibb = 1:this.nbins
-                    fileout = fullfile(this.dir0, [this.studyName strtrim(sprintf('%3.3i', ibb-1)) ".s"]);
+                    fileout = fullfile(this.dir0, [this.studyName strtrim(sprintf('%3.3i', ibb-1)) '.s']);
+                    this.fqfilename = fileout;
                     
                     fid30 = fopen(fileout, 'w');
-                    this.dprintf('savingData', sprintf("Writing sinogram :%s", fileout));                    
+                    this.dprintf('savingData', sprintf('Writing sinogram :%s', fileout));                    
                     prompts_ = this.prompts((ibb-1)*this.sinoNumel+1:ibb*this.sinoNumel);
                     randoms_ = this.randoms((ibb-1)*this.sinoNumel+1:ibb*this.sinoNumel);
                     fwrite(fid30, prompts_);
@@ -306,13 +301,14 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
                     fclose(fid30);
                     
                     this.fduration = this.tickperbin(ibb);                    
-                    fileouthdr = [this.dir0 this.studyName strtrim(sprintf('%3.3i', ibb-1)) ".s.hdr"];
+                    fileouthdr = [this.dir0 this.studyName strtrim(sprintf('%3.3i', ibb-1)) '.s.hdr'];
                     this.save_hdr( fileouthdr, fileout, this.listmode.studyTime, ...
                         this.total(prompts_), this.total(randoms_));
                     this.fstart = this.fstart + this.fstartinc;
                     if (ibb == 1)
                         this.save_mhdr(this.studyName, this.nbins);
                     end
+                    fclose(fid30);
                 end % end loop on bins
             end % end if saving sinograms
         end
@@ -324,11 +320,11 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
             ip = inputParser;
             addParameter(ip, 'dir0', '/data/anlab/Hongyu/Phantom_24Jan2017/Gated', @isdir);
             addParameter(ip, 'fileMRbin', 'BinningResult.txt', @ischar);
-            addParameter(ip, 'filePETbin', 'PETMR_bintable.dat', @ischar);
+            addParameter(ip, 'filePETbin', 'PETMR_bintable_JJL.dat', @ischar);
             addParameter(ip, 'fileprefixPTD', 'Motion-LM-00', @ischar);
             addParameter(ip, 'nbins', 5, @isnumeric);
             addParameter(ip, 'saveSino', false, @islogical);
-            addParameter(ip, 'studyName', 'Phantom5BinsG_', @ischar);
+            addParameter(ip, 'studyName', 'Phantom5BinsG_JJL_', @ischar);
             addParameter(ip, 'tstep', 170, @(x) isnumeric && x >= 85);
             parse(ip, varargin{:});
  			this.dir0_ = ip.Results.dir0;
@@ -340,12 +336,14 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
             
             cd(this.dir0);
             import mlan.*;
-            this.mrBinning_  = MRBinningParser.load(ip.Results.fileMRbin);
-            this.mrBinning_  = this.mrBinning_.next; % queue non-discarded bins
+            this.mrBinning_  = MRBinningParser.load(ip.Results.fileMRbin, 'tstep', ip.Results.tstep);
             this.petBinning_ = PETBinningParser.new(ip.Results.filePETbin);
             this.listmode_   = Listmode('filepath', this.dir0_, 'fileprefix', ip.Results.fileprefixPTD);            
             this.xsize       = this.listmode_.lhdrParser.parseSplitNumeric('bin size (cm)');
             this.zsize       = this.listmode_.lhdrParser.parseSplitNumeric('distance between rings (cm)')/2;   
+            
+            this.minindL = this.long(3000);
+            this.maxindL = this.long(0);
             
         end
     end
@@ -357,7 +355,9 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
         amin
         fduration
         fstart = 0   
-        fstartinc = 10000 % 5 sec frames? 10?
+        fstartinc = 10000 % 5 sec frames? 10 sec?
+        maxindL
+        minindL
         prompts
         randoms
         rates
@@ -365,6 +365,7 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
         sinoinfo
         tickperbin
         timepos
+        tstart0
         tvecMR
         tvecPT
         xsize
@@ -385,7 +386,7 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
             hr1 = fix(str2double(tk1(0)));
             mn1 = fix(str2double(tk1(1)));
             sc1 = fix(str2double(tk1(2))); 
-            fdr = fix(str2double(this.fduration)/1000); % in sec, float
+            fdr = fix(str2double(this.fduration)/1000); % in sec, single
             % Richard:  this will add 0 in fdr < 1.  !
             % I am not sure if this is needed or not.
             % will need ot revise at some point.
@@ -433,10 +434,10 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
                 this.listmode.nsegments, this.listmode.number_of_rings, this.listmode.max_ring_difference);
             this.dprintf('SortLM_motion', 'Segtable = %s', num2str(this.listmode.segtable));            
             this.dprintf('SortLM_motion', 'Allocating memory, sinoNumel(bytes) = %i', this.sinoNumel);
-            this.prompts       = zeros(this.sinoNumel*this.nbins, 1, 'int16');
-            this.randoms       = zeros(this.sinoNumel*this.nbins, 1, 'int16');
-            this.singles_rates = zeros(this.listmode.nbuckets,1, 'int32');
-            this.tickperbin    = zeros(this.nbins,1, 'int32');            
+            this.prompts       = zeros(this.sinoNumel*this.nbins, 1, 'uint16');
+            this.randoms       = zeros(this.sinoNumel*this.nbins, 1, 'uint16');
+            this.singles_rates = zeros(this.listmode.nbuckets,1, 'uint32');
+            this.tickperbin    = zeros(this.nbins,1, 'uint32');
             this.nbprt  = this.long(0);
             this.nbrnd  = this.long(0);
             this.nbttag = this.long(0);
@@ -444,109 +445,110 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
             this.nbctrl = this.long(0);
             
             %
-            % Setup ibin0, ibin100
+            % Setup this.mrBinning_
             %
-            ibin0 = this.mrBinning_.ibin;
-            ibin100 = 100;
+            %this.mrBinning_ = this.mrBinning_.setIbinTo100;
             this.fduration = this.mrBinning_.TFinal - this.mrBinning_.tstart;
-            ifr = false;            
-            this.tvecMR = zeros(this.TVEC_DIM, 1, 'int16');
-            this.tvecPT = zeros(this.TVEC_DIM, 1, 'int16');
+            this.tvecMR = zeros(this.TVEC_DIM, 1, 'uint16');
+            this.tvecPT = zeros(this.TVEC_DIM, 1, 'uint16');
+            this.fstart = this.mrBinning_.tstart;
+            this.tstart0 = this.mrBinning_.tstart;
             
             %
             % Data driven PET info
             %
-            this.timepos = zeros(this.mrBinning_.nmarkers,1, 'single');
+            this.timepos = zeros(this.mrBinning_.nmarkers, 1, 'single');
             timemarker = 1;
             
             % ------------------------------------------------------------------------------
             %
             %                     Start reading listmode file HERE
             %
-            % ------------------------------------------------------------------------------               
+            % ------------------------------------------------------------------------------
             
-            nlook = this.long(65536); % buffer length in longwords
-            nbblock = this.listmode.wordCounts/nlook; % num buffer blocks ~ 1375
+            nlook = this.BUFFER_LENGTH;
+            nbblock = fix(this.listmode.wordCounts/this.BUFFER_LENGTH); % num buffer blocks ~ 1375
             remainder = mod(this.listmode.wordCounts, nlook); % remainder of buffer blocks in longwords ~40781
-            this.dprintf('SortLM_motion', 'NB Block=%g Remainder=%i', nbblock, remainder);            
-            ibf = this.long(0);            
-            tbread = 0; % total bytes read
+            this.dprintf('SortLM_motion', 'num. buffer blocks = %g, remainder = %i', nbblock, remainder);
+            tlread = 0; % total longwords read
             
             fid33 = fopen(this.listmode.fqfilename);
-            while (~feof(fid33) )
+            for ibf = 1:nbblock+1
                 
-                if (ibf < nbblock-2)
-                    array = fread(fid33, nlook, 'int32=>int32');
-                else
-                    nlook = this.listmode.wordCounts - tbread/4;
-                    array = fread(fid33, nlook, 'int32=>int32');
-                end                
-                tbread = tbread + length(array)*4;
-                ibf = ibf + 1;
-                %this.dprint('SortLM_motion', "Total number of bytes read : %i %g %i %g", ibf, tbread, this.listmode.wordCounts, time)
+                if (ibf == nbblock+1)
+                    if (remainder == 0)
+                        break
+                    end
+                    nlook = this.listmode.wordCounts - tlread; % ~90087245 - tlread
+                end
+                arrayL = fread(fid33, nlook, 'uint32=>uint32', 0, 'ieee-le');              
+                tlread = tlread + length(arrayL);
+                %this.dprint('SortLM_motion', 'Total number of longwords read : %i %g %i %g', ibf, tlread, this.listmode.wordCounts, time)
                 
                 %% loop within buffer block
                 for ifl = 1:nlook
                     
-                    tagPromptsRandoms = bitshift(array(ifl), -31); 
-                    tagDeadtime = bitshift(array(ifl), -30); 
-                    tagPhysio = bitshift(array(ifl), -28); 
+                    tagPacketBitL   = bitshift(arrayL(ifl), -31, 'uint32'); 
+                    tagTimeMarkerL  = bitshift(arrayL(ifl), -30, 'uint32'); 
+                    tagPhysioL      = bitshift(arrayL(ifl), -28, 'uint32'); 
                     
                     %% prompts or randoms
-                    if (tagPromptsRandoms == 0 && ifr)
+                    if (tagPacketBitL == 0 && this.mrBinning_.hasTimeMarker)
                         
                         % lots of small local variables ...
-                        prt  = bitshift(array(ifl), -30);
-                        addr = bitand(array(ifl), '1FFFFFFF');
-                        izp  = addr/(this.listmode.xdim*this.listmode.ydim);
-                        ivw  = (addr - izp*this.listmode.xdim*this.listmode.ydim)/ this.listmode.xdim;
-                        ipr  = (addr - izp*this.listmode.xdim*this.listmode.ydim - ivw*this.listmode.xdim);
-                        ind  = ipr;  %(ipr-this.listmode.xdim/2)*2+this.listmode.xdim/2
+                        prtL  = bitshift(arrayL(ifl), -30, 'uint32');
+                        addrL = bitand(arrayL(ifl), this.hex2long('1FFFFFFF'), 'uint32');
+                        izpL  = addrL/(this.listmode.xdim*this.listmode.ydim);
+                        ivwL  = (addrL - izpL*this.listmode.xdim*this.listmode.ydim)/ this.listmode.xdim;
+                        iprL  = (addrL - izpL*this.listmode.xdim*this.listmode.ydim - ivwL*this.listmode.xdim);
+                        indL  = iprL;  %(iprL-this.listmode.xdim/2)*2+this.listmode.xdim/2
                         
-                        if (addr <= this.sinoNumel)
+                        this.minindL = min(indL, this.minindL);
+                        this.maxindL = max(indL, this.maxindL);
+                        
+                        if (addrL <= this.sinoNumel)
                             % this.nbins limited by available physical memory ~ 5
-                            if (prt == 1 && ibin100 < this.nbins)
-                                this.prompts(ibin100*this.sinoNumel+addr) = this.prompts(ibin100*this.sinoNumel+addr) + 1;
+                            if (prtL == 1 && this.mrBinning_.ibin < this.nbins)
+                                this.prompts(this.mrBinning_.ibin*this.sinoNumel+addrL) = this.prompts(this.mrBinning_.ibin*this.sinoNumel+addrL) + 1;
                                 this.nbprt = this.nbprt + 1;
                                 
                                 %% CUT in vertical position
-                                if (abs(ivw-120) <= 10)
-                                    this.petBinning_.avgpos = this.petBinning_.avgpos + ind;
-                                    this.petBinning_.nbpos = this.petBinning_.nbpos + 1;
+                                if (abs(ivwL-120) <= 10)
+                                    this.petBinning_.avgpos = this.petBinning_.avgpos + single(indL);
+                                    this.petBinning_.nbpos  = this.petBinning_.nbpos + 1;
                                 end
                             end
-                            if (prt == 0 && ibin100 < this.nbins)
-                                this.randoms(ibin100*this.sinoNumel+addr) = this.randoms(ibin100*this.sinoNumel+addr) + 1;
+                            if (prtL == 0 && this.mrBinning_.ibin < this.nbins)
+                                this.randoms(this.mrBinning_.ibin*this.sinoNumel+addrL) = this.randoms(this.mrBinning_.ibin*this.sinoNumel+addrL) + 1;
                                 this.nbrnd = this.nbrnd + 1;
                             end
                         else
                             warning('mlan:arrayAddressErr', ...
                                     'SortLM_motion: Bad Sino Address ...%12i%12i  %32.32bx', ...
-                                    (ibf-1)*nlook+ifl, addr, array(ifl));
+                                    (ibf-1)*nlook+(ifl-1), addrL, arrayL(ifl));
                         end
                         
                     end %% end of prommpt or randoms
                     
                     %% Time tags and dead time tracking -- TAG1
-                    if (tagDeadtime == 2)
+                    if (tagTimeMarkerL == 2)
                         
-                        ilt = bitshift(array(ifl), -29);
+                        tagGantryL = bitshift(arrayL(ifl), -29, 'uint32');
                         
                         %% Time tags
-                        if (ilt == 4)
+                        if (tagGantryL == 4)
                             
-                            this.petBinning_.time = bitand(array(ifl), '1FFFFFFF'); %% in msec
+                            this.petBinning_.time = bitand(arrayL(ifl), this.hex2long('1FFFFFFF'), 'uint32'); %% in msec
                             this.nbttag = this.nbttag + 1;
                             
-                            %this.dprintf('SortLM_motion', 'Running time = %g %g %g %i %g', tag, this.petBinning_.time, this.petBinning_.frame_time, ifr, frame_duration)
-                            if (ifr && ibin100 < this.nbins)
-                                this.tickperbin(ibin100) = this.tickperbin(ibin100) + 1; 
+                            %this.dprintf('SortLM_motion', 'Running time = %g %g %g %i %g', tag, this.petBinning_.time, this.petBinning_.frame_time, this.mrBinning_.hasTimeMarker, frame_duration)
+                            if (this.mrBinning_.hasTimeMarker && this.mrBinning_.ibin < this.nbins)
+                                this.tickperbin(this.mrBinning_.ibin) = this.tickperbin(this.mrBinning_.ibin) + 1; 
                             end
                             
                             %% Skip to the first MR time marker
                             if (this.petBinning_.frame_time >= this.mrBinning_.tstart)
-                                ifr = true;
-                                ibin100 = ibin0;
+                                this.mrBinning_ = this.mrBinning_.resetIbin;
                             end
                             
                             %% Normal processing...
@@ -557,64 +559,62 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
                                 else
                                     this.savingData;
                                     this.plot;
+                                    fclose(fid33);
                                     return
                                 end
                                 if (~isnan(this.mrBinning_.ibin))
                                     if (this.mrBinning_.ibin >= this.nbins)
                                         error('mlan:counterErr', 'bin number is too large!\n%g\n', this.mrBinning_.ibin);
                                     end
-                                    ibin0 = this.mrBinning_.ibin; %#ok<NASGU>
+                                    this.mrBinning_ = this.mrBinning_.setIbin0;
                                     %dprintf('SortLM_motion', 'Current Bin time = %g %g %i %i %g %i %i', ...
-                                    %this.mrBinning_.tstart, this.mrBinning_.tlast, ibinOrig, ibin, this.petBinning_.frame_time, ifr, ibin0);
+                                    %this.mrBinning_.tstart, this.mrBinning_.tlast, this.mrBinning_.ibin, this.mrBinning_.ibin, this.petBinning_.frame_time, this.mrBinning_.hasTimeMarker, this.mrBinning_.ibin0);
                                     %dprintf('SortLM_motion', '%10i %10i %10i %10i %10i %10i', ...
                                     %this.tickperbin(0:this.nbins-1), this.long(this.total(this.tickperbin)));
-                                    this.timepos(timemarker) = float(this.petBinning_.avgpos)/this.petBinning_.nbpos;
+                                    this.timepos(timemarker) = single(this.petBinning_.avgpos)/this.petBinning_.nbpos;
                                     timemarker = timemarker + 1;
                                     
-                                    %%%  PET only time increment
-                                    this.petBinning_.tstart = this.mrBinning_.tstart;
-                                    this.petBinning_.tlast  = this.mrBinning_.tlast;
-                                    %         ibin = 1    % no PET sorting
-                                    %%%
+                                    %% PET only time increment
+                                    %ibin = 1    % no PET sorting
                                     
-                                    %
-                                    % PET data driven bins
-                                    %
+                                    %% PET data driven bins
                                     %% use this.petBinning_.avgpos to provide the bin number
                                     this.amin = 153.5;    % 153.5
                                     this.amax = 157;
                                     astep = (this.amax-this.amin)/5;
-                                    abin = (float(this.petBinning_.avgpos)/this.petBinning_.nbpos - this.amin);
+                                    abin  = (single(this.petBinning_.avgpos)/this.petBinning_.nbpos - this.amin);
                                     ibinP = fix(abin/astep);
                                     if (ibinP <= 0); ibinP = 0; end
                                     if (ibinP >= 4); ibinP = 4; end
-                                    ibin0 = this.mrBinning_.ibin; %#ok<NASGU>
-                                    this.petBinning_.avgpos = 0.0;
+                                    this.mrBinning_ = this.mrBinning_.setIbin0;
+                                    this.petBinning_.avgpos = 0;
                                     this.petBinning_.nbpos = 0;
                                 end
-                                ifr = true;
                                 % ibin = ibinP
-                                ibin0 = ibin100;
+                                this.mrBinning_ = this.mrBinning_.setIbin0;
                                 % ibin = 1 % no PET sorting % should be removed
                                 this.petBinning_.fprintf('%g %g %g %i %i\n', ...
-                                    this.petBinning_.tstart, this.petBinning_.time, this.petBinning_.frame_time, this.mrBinning_.ibin, ibinP);
+                                    this.mrBinning_.tstart, this.petBinning_.time, this.petBinning_.frame_time, this.mrBinning_.ibin, ibinP);
                                 this.tvecMR(timemarker-1) = this.mrBinning_.ibin;
                                 this.tvecPT(timemarker-1) = ibinP;
                             end
                             
                             %% stop reading PET after the last MR time marker
                             if (this.petBinning_.frame_time >= this.mrBinning_.TFinal)
+                                this.mrBinning_ = this.mrBinning_.setIbinTo100;                                
+                                this.mrBinning_.hasTimeMarker = false;
                                 this.savingData;
                                 this.plot
+                                fclose(fid33);
                                 return
                             end
                             
                         end %% Time tags
                         
                         %% Singles data
-                        if (ilt == 5)
-                            block   = bitand(bitshift(array(ifl), -19), '3FF');
-                            singles = bitand(array(ifl), '7FFFF');
+                        if (tagGantryL == 5)
+                            block   = bitand(bitshift(arrayL(ifl), -19, 'uint32'), this.hex2long('3FF'), 'uint32');
+                            singles = bitand(arrayL(ifl), this.hex2long('7FFFF'), 'uint32');
                             %this.dprintf('SortLM_motion', 'Block and singles #s.... %i %i', block, singles
                             if (block < this.listmode.nbuckets)
                                 this.singles_rates(block) = singles;
@@ -624,25 +624,26 @@ classdef SortLMMotionMatlab < mlan.AbstractIO % & mlan.ISortLMMotionMatlab
                     end % of ttag = 2
                     
                     %% Physio triggers -- TAG3
-                    if (tagPhysio == 14)
+                    if (tagPhysioL == 14)
                         this.dprintf('SortLM_motion', 'Physio trigger format# %i', ...
-                            bitand(bitshift(array(ifl), -24), '0F'));
-                        this.dprintf('SortLM_motion', '%8i     %32bx\n', this.petBinning_.time, array(ifl));
+                            bitand(bitshift(arrayL(ifl), -24, 'uint32'), this.hex2long('0F'), 'uint32'));
+                        this.dprintf('SortLM_motion', '%8i     %32bx\n', this.petBinning_.time, arrayL(ifl));
                         this.nbphy = this.nbphy + 1;
                     end                    
-                    if (tagPhysio == 15)
+                    if (tagPhysioL == 15)
                         this.dprintf('SortLM_motion', 'Control acquisition parameters# %i %8i\n', ...
-                            bitand(bitshift(array(ifl), -24), '0F'), this.petBinning_.time);
-                        %this.dprintf('SortLM_motion', '%8i .  %32bx', this.petBinning_.time, array(ifl));
+                            bitand(bitshift(arrayL(ifl), -24, 'uint32'), this.hex2long('0F'), 'uint32'), this.petBinning_.time);
+                        %this.dprintf('SortLM_motion', '%8i .  %32bx', this.petBinning_.time, arrayL(ifl));
                         this.nbctrl = this.nbctrl + 1;
                     end
                     
                 end %% Loop within buffer block
                 
-            end %% while not OEF listmode           
+            end %% Loop buffer blocks         
             
             this = this.savingData;
-            this.plot;            
+            this.plot;  
+            fclose(fid33);
         end        
     end
     

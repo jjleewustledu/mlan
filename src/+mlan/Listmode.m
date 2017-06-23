@@ -7,9 +7,9 @@ classdef Listmode < mlan.AbstractIO
  	%% It was developed on Matlab 9.2.0.538062 (R2017a) for MACI64.  Copyright 2017 John Joowon Lee.
  	
 	properties (Constant)
-        xdim = int32(344)
-        ydim = int32(252)
-        zdim = int32(4084)
+        xdim = 344
+        ydim = 252
+        zdim = 4084
     end
     
     properties (Dependent)
@@ -34,25 +34,25 @@ classdef Listmode < mlan.AbstractIO
             g = this.lhdrParser_;
         end
         function g = get.max_ring_difference(this)
-            g = this.long(this.max_ring_difference_);
+            g = this.max_ring_difference_;
         end
         function g = get.mhdrParser(this)
             g = this.mhdrParser_;
         end
         function g = get.nbuckets(this)
-            g = this.long(this.nbuckets_);
+            g = this.nbuckets_;
         end
         function g = get.nsegments(this)
-            g = this.long(this.nsegments_);
+            g = this.nsegments_;
         end
         function g = get.number_of_rings(this)
-            g = this.long(this.number_of_rings_);
+            g = this.number_of_rings_;
         end
         function g = get.segtable(this)
             g = this.segtable_;
         end
         function g = get.sinoNumel(this)
-            g = this.long(this.xdim*this.ydim*this.zdim);
+            g = this.xdim*this.ydim*this.zdim;
         end
         function g = get.studyDate(this)
             g = this.studyDate_;
@@ -61,7 +61,7 @@ classdef Listmode < mlan.AbstractIO
             g = this.studyTime_;
         end
         function g = get.wordCounts(this)
-            g = this.long(this.wordCounts_);
+            g = this.wordCounts_;
         end
         
         %%

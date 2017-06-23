@@ -11,8 +11,13 @@ classdef MRBinningParser < mlan.AbstractParser
         TSTEP_MIN = 85 % msec
     end
     
+    properties
+       hasTimeMarker 
+    end
+    
     properties (Dependent)
         ibin
+        ibin0
         nmarkers
         TFinal
         timepos
@@ -22,32 +27,32 @@ classdef MRBinningParser < mlan.AbstractParser
     end
     
 	methods (Static)
-        function this = load(fn)
-            assert(lexist(fn, 'file'));
+        function this = load(fn, varargin)
+            import mlan.*;
+            ip = inputParser;
+            addRequired(ip, 'fn', @(x) lexist(x, 'file'));
+            addParameter(ip, 'tstep', MRBinningParser.TSTEP_MIN, @isnumeric);
+            parse(ip, fn, varargin{:});
+            
             [pth, fp, fext] = fileparts(fn); 
-            if (lstrfind(fext, mlan.MRBinningParser.FILETYPE_EXT) || ...
+            if (lstrfind(fext, MRBinningParser.FILETYPE_EXT) || ...
                 isempty(fext))
-                this = mlan.MRBinningParser.loadText(fn); 
+                this = MRBinningParser.loadText(fn); 
                 this.filepath_   = pth;
                 this.fileprefix_ = fp;
-                this.filesuffix_ = fext;
+                this.filesuffix_ = fext;            
+                this.tstep_ = ip.Results.tstep;
+                if (this.hasNext)
+                    this = this.next;
+                    this.ibin0_ = this.ibin_;
+                end
+                this.hasTimeMarker = true;
                 return 
             end
             error('mlan:unsupportedParam', 'MRBinningParser.load does not support file-extension .%s', fext);
         end
-        function this = loadx(fn, ext)
-            if (~lstrfind(fn, ext))
-                if (~strcmp('.', ext(1)))
-                    ext = ['.' ext];
-                end
-                fn = [fn ext];
-            end
-            assert(lexist(fn, 'file'));
-            [pth, fp, fext] = filepartsx(fn, ext); 
-            this = mlan.MRBinningParser.loadText(fn);
-            this.filepath_   = pth;
-            this.fileprefix_ = fp;
-            this.filesuffix_ = fext;
+        function loadx(~)
+            error('mlan:notImplemented', 'MRBinningParser.loadx');
         end
     end
     
@@ -57,6 +62,9 @@ classdef MRBinningParser < mlan.AbstractParser
         
         function g = get.ibin(this)
             g = this.long(this.ibin_);
+        end
+        function g = get.ibin0(this)
+            g = this.long(this.ibin0_);
         end
         function g = get.nmarkers(this)
             g = this.long(length(this.cellContents_));
@@ -91,7 +99,7 @@ classdef MRBinningParser < mlan.AbstractParser
             this.tstart_ = nan;
             this.tlast_  = nan;
             this.ibin_   = nan;
-            while (isnan(this.ibin_) && this.currentLine_ < length(this))
+            while (isnan(this.ibin_) && this.currentLine_ < length(this.cellContents_))
                 this.currentLine_ = this.currentLine_ + 1;
                 names = regexp( ...
                     this.cellContents_{this.currentLine_}, ...
@@ -113,11 +121,17 @@ classdef MRBinningParser < mlan.AbstractParser
             else
                 bn = nan;
             end
+        end   
+        function this = resetIbin(this)
+            this.ibin_ = this.ibin0_;
+            this.hasTimeMarker = true;
         end
-        
-        function this = MRBinningParser
-            this.currentLine_ = 0;
-            this.tstep_ = this.TSTEP_MIN;
+        function this = setIbin0(this)
+            this.ibin0_ = this.ibin_;            
+            this.hasTimeMarker = true;
+        end
+        function this = setIbinTo100(this)
+            this.ibin_ = 100;
         end
     end 
     
@@ -126,6 +140,7 @@ classdef MRBinningParser < mlan.AbstractParser
     properties (Access = protected)
         currentLine_
         ibin_
+        ibin0_
         TFinal_
         timepos_
         tlast_
@@ -141,7 +156,14 @@ classdef MRBinningParser < mlan.AbstractParser
             names = regexp( ...
                 this.cellContents_{length(this)}, ...
                 sprintf('[(?<tstart>\\d+) ms, (?<tlast>\\d+) ms) --> Bin (?<ibin>\\d+$)'), 'names');
-            this.TFinal_ = names.tlast;
+            this.TFinal_ = str2double(names.tlast);
+        end
+    end
+    
+    methods (Access = 'protected')        
+        function this = MRBinningParser
+            this.currentLine_ = 0;
+            this.tstep_ = this.TSTEP_MIN;
         end
     end
 

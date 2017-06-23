@@ -14,7 +14,8 @@ classdef PETBinningParser < mlan.AbstractParser
     properties 
         avgpos
         nbpos
-        time
+        time = 0
+        tlast
         tstart = 0
         tstep  = 10000 % 10 sec
     end
@@ -37,25 +38,17 @@ classdef PETBinningParser < mlan.AbstractParser
             end
             error('mlan:unsupportedParam', 'PETBinningParser.load does not support file-extension .%s', fext);
         end
-        function this = loadx(fn, ext)
-            if (~lstrfind(fn, ext))
-                if (~strcmp('.', ext(1)))
-                    ext = ['.' ext];
-                end
-                fn = [fn ext];
-            end
-            assert(lexist(fn, 'file'));
-            [pth, fp, fext] = filepartsx(fn, ext); 
-            this = mlan.PETBinningParser.loadText(fn);
-            this.filepath_   = pth;
-            this.fileprefix_ = fp;
-            this.filesuffix_ = fext;
+        function loadx(~)
+            error('mlan:notImplemented', 'PETBinningParser.loadx');
         end
         function this = new(fn)
-            assert(~lexist(fn, 'file'));
             [pth, fp, fext] = fileparts(fn); 
+            if (lexist(fn, 'file'))
+                movefile(fn, fullfile(pth, [fp '_backup' datestr(now, 30) fext]));
+            end
             if (lstrfind(fext, mlan.PETBinningParser.FILETYPE_EXT) || ...
                 isempty(fext))
+                this = mlan.PETBinningParser;
                 this.fid_ = fopen(fn, 'w'); 
                 this.filepath_   = pth;
                 this.fileprefix_ = fp;
@@ -71,18 +64,13 @@ classdef PETBinningParser < mlan.AbstractParser
         %% GET
         
         function g = get.frame_time(this)
-            g = float(this.time)/this.PET_TIME_DILATION;
+            g = single(this.time)/this.PET_TIME_DILATION;
         end
                 
         %%
         
         function fprintf(this, varargin)
             fprintf(this.fid, varargin{:});
-        end
-        
-        function this = PETBinningParser(varargin)
-            this.avgpos = 0;
-            this.nbpos = 0;
         end
     end 
     
@@ -96,6 +84,13 @@ classdef PETBinningParser < mlan.AbstractParser
             import mlan.*;
             this = PETBinningParser;
             this.cellContents_ = PETBinningParser.textfileToCell(fn);
+        end
+    end
+    
+    methods (Access = 'protected')        
+        function this = PETBinningParser(varargin)
+            this.avgpos = 0;
+            this.nbpos  = 0;
         end
     end
 
