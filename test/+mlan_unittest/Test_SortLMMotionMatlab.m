@@ -14,12 +14,14 @@ classdef Test_SortLMMotionMatlab < matlab.unittest.TestCase
  		registry
  		testObj
         pwd0
-        pwdWilliam = '/data/anlab/Hongyu/Phantom_24Jan2017/Gated'
+        pwdWilliam = '/data/anlab/Hongyu/Phantom_24Jan2017/Gated/jjlee'
         pwdMac = '~/Tmp'
         mhdr0 = 'Motion-LM-00-umap-hardware.mhdr'
  	end
 
 	methods (Test)
+        function test_ctor(this)
+        end
         function test_SortLM_motion(this)
             this.testObj.SortLM_motion;
         end

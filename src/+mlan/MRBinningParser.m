@@ -54,6 +54,10 @@ classdef MRBinningParser < mlan.AbstractParser
         function loadx(~)
             error('mlan:notImplemented', 'MRBinningParser.loadx');
         end
+        function obj = ulong(obj)
+            %% ULONG always returns 4-byte integers (uint32)
+            obj = mlan.Listmode.ulong(obj);
+        end
     end
     
 	methods 		 
@@ -61,13 +65,13 @@ classdef MRBinningParser < mlan.AbstractParser
         %% GET
         
         function g = get.ibin(this)
-            g = this.long(this.ibin_);
+            g = this.ulong(this.ibin_);
         end
         function g = get.ibin0(this)
-            g = this.long(this.ibin0_);
+            g = this.ulong(this.ibin0_);
         end
         function g = get.nmarkers(this)
-            g = this.long(length(this.cellContents_));
+            g = this.ulong(length(this.cellContents_));
         end
         function g = get.TFinal(this)
             g = this.TFinal_;

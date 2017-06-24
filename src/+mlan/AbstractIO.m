@@ -25,21 +25,7 @@ classdef AbstractIO < mlan.AbstractSimpleIO
         noclobber
     end
     
-    methods (Static)        
-        function obj  = long(obj)
-            %% LONG always returns 4-byte integers (int32)
-            
-            if (ischar(obj))
-                obj = uint32(str2double(obj));
-            end
-            if (isfloat(obj))
-                obj = uint32(obj);
-            end
-        end
-        function obj  = hex2long(obj)
-            assert(ischar(obj));
-            obj = uint32(hex2dec(obj));
-        end
+    methods (Static)   
     end
     
     methods 
@@ -133,22 +119,45 @@ classdef AbstractIO < mlan.AbstractSimpleIO
         function tf   = get.noclobber(this) 
             tf = this.noclobber_;
         end
+        
+        %%
+        
+        function fid  = fopen(this, varargin)
+            ip = inputParser;
+            addOptional(ip, 'fn', this.fqfilename, @ischar);
+            addOptional(ip, 'perm', 'r', @ischar);
+            parse(ip, varargin{:});            
+            
+            if (2 == exist(ip.Results.fn, 'file') && lstrfind(lower(ip.Results.perm), 'w'))
+                movefile(fn, this.appendFileprefix(ip.Results.fn, ['_' datestr(now,30)]));
+            end
+            fid = fopen(ip.Results.fn, ip.Results.perm);
+        end
+        
+        function this = AbstractIO(varargin)
+            ip = inputParser;
+            ip.KeepUnmatched = true;
+            addParameter(ip, 'noclobber', true, @islogical);
+            parse(ip, varargin{:});
+            
+            this.noclobber = ip.Results.noclobber;
+        end
     end
     
     %% PROTECTED
     
     methods (Static, Access = protected)
-        function fn   = appendFileprefix(fn, suff)
+        function fn     = appendFileprefix(fn, suff)
             assert(2 == exist(fn, 'file'));
             assert(ischar(suff));
             [pth,fp,x] = fileparts(fn);
             fn = fullfile(pth, [fp suff x]);
         end
-        function bn   = basename(fn)
+        function bn     = basename(fn)
             [pth,fp] = fileparts(fn);
             bn = fullfile(pth, strtok(fp, '.'));
         end
-        function        dprintf(meth, obj, varargin)
+        function nbytes = dprintf(meth, obj, varargin)
             if (~mlan.AbstractIO.DEBUGGING)
                 return
             end
@@ -157,25 +166,22 @@ classdef AbstractIO < mlan.AbstractSimpleIO
                 if (~isempty(varargin))
                     obj = sprintf(obj, varargin{:});
                 end
-                fprintf(sprintf('%s:  %s\n', meth, obj));
+                nbytes = fprintf(sprintf('%s:  %s\n', meth, obj));
             elseif (isnumeric(obj))
                 if (numel(obj) < 100)
-                    fprintf(sprintf('%s:  %s\n', meth, mat2str(obj)));
+                    nbytes = fprintf(sprintf('%s:  %s\n', meth, mat2str(obj)));
                 else
                     obj = reshape(obj, 1, []);                    
-                    fprintf(sprintf('%s:  %s\n', meth, mat2str(obj(1:100))));
+                    nbytes = fprintf(sprintf('%s:  %s\n', meth, mat2str(obj(1:100))));
                 end
             else
                 try
-                    fprintf(sprintf('%s:  %s\n', meth, char(obj)));
+                    nbytes = fprintf(sprintf('%s:  %s\n', meth, char(obj)));
                 catch ME
                     error('mlan:unsupportedTypeclass', 'class(SortLMMotionMatlab.dprintf.obj) -> %s', class(obj));
                 end
             end
-        end
-        function t    = total(arr)
-            t = sum(reshape(arr, 1, []));
-        end
+        end       
     end
     
 	%  Created with Newcl by John J. Lee after newfcn by Frank Gonzalez-Morphy 

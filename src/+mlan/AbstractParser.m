@@ -18,6 +18,7 @@ classdef AbstractParser < mlan.AbstractIO
     properties (Dependent)
         cellContents
         descrip
+        fid
     end
 
 	methods % GET/SET
@@ -31,6 +32,9 @@ classdef AbstractParser < mlan.AbstractIO
         end
         function d = get.descrip(this)
             d = sprintf('%s read %s on %s', class(this), this.fqfilename, datestr(now));
+        end
+        function f = get.fid(this)
+            f = this.fid_;
         end
     end  
     

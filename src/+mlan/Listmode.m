@@ -1,4 +1,4 @@
-classdef Listmode < mlan.AbstractIO
+classdef Listmode < mlan.AbstractListmode
 	%% LISTMODE supports listmode data from the Siemens Biograph mMR. 
 
 	%  $Revision$
