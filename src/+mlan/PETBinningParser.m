@@ -44,7 +44,7 @@ classdef PETBinningParser < mlan.AbstractParser
         function this = new(fn)
             [pth, fp, fext] = fileparts(fn); 
             if (lexist(fn, 'file'))
-                movefile(fn, fullfile(pth, [fp '_backup' datestr(now, 30) fext]));
+                movefile(fn, fullfile(pth, [fp '_backup' mydatetimestr(now) fext]));
             end
             if (lstrfind(fext, mlan.PETBinningParser.FILETYPE_EXT) || ...
                 isempty(fext))

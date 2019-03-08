@@ -107,7 +107,7 @@ classdef Sinogram < mlan.AbstractListmode
         end
         function save_mhdr(this, fileprefix, Nbin)
             %% SAVE_MHDR saves a Siemens main header; if an identically named file exists, the existing file 
-            %  is backed up with suffix ['_backup' datestr(now,30)].
+            %  is backed up with suffix ['_backup' mydatetimestr(now)].
             %  @params fbase is the filename base.
             %  @params nframes is numeric.
             

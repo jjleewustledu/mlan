@@ -129,7 +129,7 @@ classdef AbstractIO < mlan.AbstractSimpleIO
             parse(ip, varargin{:});            
             
             if (2 == exist(ip.Results.fn, 'file') && lstrfind(lower(ip.Results.perm), 'w'))
-                movefile(fn, this.appendFileprefix(ip.Results.fn, ['_' datestr(now,30)]));
+                movefile(fn, this.appendFileprefix(ip.Results.fn, ['_' mydatetimestr(now)]));
             end
             fid = fopen(ip.Results.fn, ip.Results.perm);
         end
