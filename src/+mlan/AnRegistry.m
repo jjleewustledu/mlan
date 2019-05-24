@@ -1,4 +1,4 @@
-classdef AnRegistry < mlnipet.Resources
+classdef AnRegistry < handle & mlnipet.Resources
 	%% ANREGISTRY 
 
 	%  $Revision$
@@ -9,6 +9,8 @@ classdef AnRegistry < mlnipet.Resources
  	%% It was developed on Matlab 8.5.0.197613 (R2015a) for MACI64.
  	
     properties 
+        noclobber = true
+        umapType = 'pseudoct'
     end
     
     properties (Dependent)
