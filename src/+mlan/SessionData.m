@@ -36,8 +36,6 @@ classdef SessionData < mlnipet.CommonSessionData
 
     methods
         
-        %% GET, SET
-        
         function g    = getStudyCensus(this)
             error('mlan:NotImplementedError', 'SessionData.studyCensus');
         end 
