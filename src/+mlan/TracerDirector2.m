@@ -11,11 +11,10 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             ip = inputParser;
             ip.KeepUnmatched = true;
             addParameter(ip, 'sessionData', [], @(x) isa(x, 'mlpipeline.ISessionData'))
-            addParameter(ip, 'umapType', 'pseudoct', @ischar)
+            addParameter(ip, 'umapType', mlan.StudyRegistry.instance().umapType, @ischar)
             parse(ip, varargin{:})
             import mlan.TracerDirector2;
-            import mlfourd.ImagingContext2;
-            import mlpet.Resources;                       
+            import mlfourd.ImagingContext2;               
             switch ip.Results.umapType
                 case 'an'
                     this = TracerDirector2(mlfourdfp.AnUmapBuilder(varargin{:}));
@@ -37,7 +36,7 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             pwd0 = pushd(this.sessionData.sessionPath);
             umap = this.builder.buildUmap;
             umap = ImagingContext2([umap '.4dfp.hdr']);
-            umap = umap.blurred(Resources.instance.pointSpread);
+            umap = umap.blurred(mlnipet.ResourcesRegistry.instance().petPointSpread);
             umap.save;
             this.builder_ = this.builder.packageProduct(umap);
             this.builder.teardownBuildUmaps;
@@ -58,7 +57,7 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             ensuredir(dest);
             logs = fullfile(dest, 'Log', '');
             ensuredir(logs);
-            res = mlnipet.Resources.instance;
+            res = mlpipeline.ResourcesRegistry.instance;
             res.keepForensics = false;
             fv = mlfourdfp.FourdfpVisitor;
             
