@@ -8,7 +8,7 @@ classdef StudyData < mlpipeline.StudyData
  	
 	methods 		  
  		function this = StudyData(varargin)
- 			this = this@mlpipeline.StudyData(mlan.AnRegistry.instance(), varargin{:});
+ 			this = this@mlpipeline.StudyData(mlan.StudyRegistry.instance(), varargin{:});
  		end
  	end 
 

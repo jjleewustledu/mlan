@@ -11,22 +11,14 @@ classdef SubjectData < mlnipet.SubjectData
         EXTS = {'.4dfp.hdr' '.4dfp.ifh' '.4dfp.img' '.4dfp.img.rec'};
     end
 
-	methods 
-        
-        %%
-        
-        function sub  = subjectID_to_sub(~, sid)
-            assert(ischar(sid));
-            sub = ['sub-' sid];
-        end
-		  
+	methods
  		function this = SubjectData(varargin)
  			%% SUBJECTDATA
  			%  @param .
 
  			this = this@mlnipet.SubjectData(varargin{:});
 
-            this.registry_ = mlan.AnRegistry.instance;
+            this.registry_ = mlan.StudyRegistry.instance;
             this.subjectFolder_ = 'sub-universal'; % KLUDGE
             this.subjectsStruct_ = struct([]);
             this.projectData_ = mlan.ProjectData();
