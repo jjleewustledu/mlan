@@ -1,4 +1,4 @@
-classdef SessionData < mlnipet.CommonSessionData
+classdef SessionData < mlnipet.ResolvingSessionData
 	%% SESSIONDATA  
 
 	%  $Revision$
@@ -36,7 +36,7 @@ classdef SessionData < mlnipet.CommonSessionData
 
     methods
         
-        function g    = getStudyCensus(this)
+        function getStudyCensus(~)
             error('mlan:NotImplementedError', 'SessionData.studyCensus');
         end 
                 
@@ -66,10 +66,8 @@ classdef SessionData < mlnipet.CommonSessionData
         %%
         
       	function this = SessionData(varargin)
- 			this = this@mlnipet.CommonSessionData(varargin{:});
-            if (isempty(this.subjectData_))
-                this.subjectData_ = mlan.SubjectData();
-            end
+ 			this = this@mlnipet.ResolvingSessionData(varargin{:});
+            
         end
     end
     
