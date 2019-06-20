@@ -10,6 +10,12 @@ classdef SubjectData < mlnipet.SubjectData
         TRACERS = {'OC' 'OO' 'HO'}
         EXTS = {'.4dfp.hdr' '.4dfp.ifh' '.4dfp.img' '.4dfp.img.rec'};
     end
+    
+    methods (Static)
+        function obj = createProjectData(varargin)
+            obj = mlan.ProjectData(varargin{:});
+        end
+    end
 
 	methods
  		function this = SubjectData(varargin)
