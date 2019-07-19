@@ -12,6 +12,10 @@ classdef (Sealed) StudyRegistry < handle & mlnipet.StudyRegistry
     end
     
     methods (Static)
+        function sub  = subjectID_to_sub(~, sid)
+            assert(ischar(sid));
+            sub = ['sub-' sid];
+        end
         function this = instance(varargin)
             %% INSTANCE
             %  @param optional qualifier is char \in {'initialize' ''}

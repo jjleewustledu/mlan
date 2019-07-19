@@ -13,6 +13,32 @@ classdef SessionData < mlnipet.ResolvingSessionData
     end
     
     methods (Static)
+        function sessd = create(varargin)
+            %  @param required sid is the XNAT subject ID.
+            %  @param required eid is the XNAT experiment ID.
+            %  @param required tra is the tracer as char.
+            %  @param ac is attenuation-correction; logical, default := true.
+            
+            import mlan.*
+            ip = inputParser;
+            addRequired(ip, 'sid', @ischar)
+            addRequired(ip, 'eid', @ischar)
+            addRequired(ip, 'tra', @ischar)
+            addParameter(ip, 'ac', true, @islogical)
+            parse(ip, varargin{:})
+            ipr = ip.Results;
+            
+            reg = StudyRegistry.instance();
+            sub = reg.subjectID_to_subFolder(ipr.sid);
+            ses = reg.experimentID_to_ses(ipr.eid);
+            sessd = SessionData( ...
+                'studyData', StudyData(), ...
+                'projectData', ProjectData('sessionStr', ses), ...
+                'subjectData', SubjectData('subjectFolder', sub), ...
+                'sessionFolder', ses, ...
+                'tracer', ipr.tra, ...
+                'ac', upper(ipr.ac));
+        end
         function sessd = struct2sessionData(sessObj)
             if (isa(sessObj, 'mlan.SessionData'))
                 sessd = sessObj;
