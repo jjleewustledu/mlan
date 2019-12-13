@@ -13,31 +13,33 @@ classdef SessionData < mlnipet.ResolvingSessionData
     end
     
     methods (Static)
-        function sessd = create(varargin)
-            %  @param required sid is the XNAT subject ID.
-            %  @param required eid is the XNAT experiment ID.
-            %  @param required tra is the tracer as char.
-            %  @param ac is attenuation-correction; logical, default := true.
+        function this = create(varargin)
+            % @param folders ~ <project folder>/<session folder>/<scan folder>, in getenv('SINGULARITY_HOME')
+            % @param ignoreFinishMark is logical, default := false
             
             import mlan.*
+
             ip = inputParser;
-            addRequired(ip, 'sid', @ischar)
-            addRequired(ip, 'eid', @ischar)
-            addRequired(ip, 'tra', @ischar)
-            addParameter(ip, 'ac', true, @islogical)
-            parse(ip, varargin{:})
-            ipr = ip.Results;
+            addRequired(ip, 'folders', @(x) isfolder(fullfile(getenv('SINGULARITY_HOME'), x)))
+            addParameter(ip, 'ignoreFinishMark', false, @islogical);
+            parse(ip, varargin{:});
+            ipr = adjustIpr(ip.Results);
+    
+            this = SessionData( ...
+                'studyData', StudyRegistry.instance(), ...
+                'projectData', ProjectData('projectFolder', ipr.prjfold), ...
+                'subjectData', SubjectData(), ...
+                'sessionFolder', ipr.sesfold, ...
+                'scanFolder', ipr.scnfold);
+            this.ignoreFinishMark = ipr.ignoreFinishMark;            
             
-            reg = StudyRegistry.instance();
-            sub = reg.subjectID_to_subFolder(ipr.sid);
-            ses = reg.experimentID_to_ses(ipr.eid);
-            sessd = SessionData( ...
-                'studyData', StudyData(), ...
-                'projectData', ProjectData('sessionStr', ses), ...
-                'subjectData', SubjectData('subjectFolder', sub), ...
-                'sessionFolder', ses, ...
-                'tracer', ipr.tra, ...
-                'ac', upper(ipr.ac));
+            function ipr = adjustIpr(ipr)
+                ss = strsplit(ipr.folders, filesep);
+                assert(3 == length(ss));
+                ipr.prjfold = ss{1};
+                ipr.sesfold = ss{2};
+                ipr.scnfold = ss{3};
+            end
         end
         function sessd = struct2sessionData(sessObj)
             if (isa(sessObj, 'mlan.SessionData'))

@@ -8,11 +8,17 @@ classdef (Sealed) StudyRegistry < handle & mlnipet.StudyRegistry
  	%  and checked into repository /Users/jjlee/Local/src/mlcvl/mlan/src/+mlan.
  	%% It was developed on Matlab 8.5.0.197613 (R2015a) for MACI64.
  	
-    properties 
+    properties
+        ignoredExperiments = {}
+        tracerList = {'oc' 'oo' 'ho'}
+    end
+    
+    properties (Dependent)
+        subjectsJson
     end
     
     methods (Static)
-        function sub  = subjectID_to_sub(~, sid)
+        function sub  = subjectID_to_sub(sid)
             assert(ischar(sid));
             sub = ['sub-' sid];
         end
@@ -36,6 +42,16 @@ classdef (Sealed) StudyRegistry < handle & mlnipet.StudyRegistry
             end
         end
     end  
+    
+    methods
+        
+        %% GET        
+        
+        function g = get.subjectsJson(~)
+            g = jsondecode( ...
+                fileread(fullfile(getenv('SUBJECTS_DIR'), 'constructed_20191108.json')));
+        end
+    end
     
     %% PRIVATE
     

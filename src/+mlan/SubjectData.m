@@ -24,9 +24,8 @@ classdef SubjectData < mlnipet.SubjectData
 
  			this = this@mlnipet.SubjectData(varargin{:});
 
-            this.registry_ = mlan.StudyRegistry.instance;
-            this.subjectFolder_ = 'sub-universal'; % KLUDGE
-            this.subjectsJson_ = struct([]);
+            this.studyRegistry_ = mlan.StudyRegistry.instance;
+            this.subjectsJson_ = this.studyRegistry_.subjectsJson;
  		end
     end 
 
