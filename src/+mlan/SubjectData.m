@@ -17,7 +17,7 @@ classdef SubjectData < mlnipet.SubjectData
         end
     end
 
-	methods
+	methods        
  		function this = SubjectData(varargin)
  			%% SUBJECTDATA
  			%  @param .

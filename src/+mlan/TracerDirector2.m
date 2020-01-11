@@ -167,7 +167,6 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             ipr = ip.Results;
             
             ss = strsplit(ipr.foldersExpr, '/');
-            setenv('SUBJECTS_DIR', fullfile(getenv('SINGULARITY_HOME'), ss{1}))
             subpth = fullfile(getenv('PROJECTS_DIR'), ss{1}, ss{2});            
             
             %% redundant with mlpet.StudyResolveBuilder.configureSubjectData__ if ipr.makeClean
@@ -194,7 +193,6 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
                         sessd.tracerBlurArg = TracerDirector2.todouble(ipr.blur);
                     end
                     srb = SessionResolveBuilder('sessionData', sessd, 'makeClean', ipr.makeClean);
-                    srb.referenceTracer = 'ho';
                     if ipr.makeAligned
                         srb.align;
                         srb.t4_mul;
