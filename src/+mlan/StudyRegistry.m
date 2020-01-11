@@ -20,7 +20,8 @@ classdef (Sealed) StudyRegistry < handle & mlnipet.StudyRegistry
     methods (Static)
         function sub  = subjectID_to_sub(sid)
             assert(ischar(sid));
-            sub = ['sub-' sid];
+            ss = strsplit(sid, '_');
+            sub = ['sub-' ss{end}];
         end
         function this = instance(varargin)
             %% INSTANCE
