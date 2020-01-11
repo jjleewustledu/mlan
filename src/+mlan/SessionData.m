@@ -94,8 +94,8 @@ classdef SessionData < mlnipet.ResolvingSessionData
         %%
         
       	function this = SessionData(varargin)
- 			this = this@mlnipet.ResolvingSessionData(varargin{:});
-            
+ 			this = this@mlnipet.ResolvingSessionData(varargin{:});            
+            this.referenceTracer_ = 'ho';
         end
     end
     
