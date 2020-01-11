@@ -194,8 +194,8 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
                     end
                     srb = SessionResolveBuilder('sessionData', sessd, 'makeClean', ipr.makeClean);
                     if ipr.makeAligned
-                        srb.align;
-                        srb.t4_mul;
+                        srb.alignCrossModal();
+                        srb.t4_mul();
                     end
                 end
                 popd(pwd1)
