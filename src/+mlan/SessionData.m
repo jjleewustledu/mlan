@@ -94,8 +94,11 @@ classdef SessionData < mlnipet.ResolvingSessionData
         %%
         
       	function this = SessionData(varargin)
- 			this = this@mlnipet.ResolvingSessionData(varargin{:});            
-            this.referenceTracer_ = 'ho';
+ 			this = this@mlnipet.ResolvingSessionData(varargin{:}); 
+            if isempty(this.studyData_)
+                this.studyData_ = mlan.StudyData();
+            end
+            this.ReferenceTracer = 'HO';
         end
     end
     
