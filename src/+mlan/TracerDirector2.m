@@ -178,7 +178,8 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             
             ensuredir(subpth)
             pwd0 = pushd(subpth);
-            dt = DirTool([ss{3} '*']);
+            ensuredir(ss{end})
+            dt = DirTool([ss{end} '*']);
             for ses = dt.dns
                 
                 pwd1 = pushd(ses{1});
@@ -213,6 +214,58 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
                     end
                 end
             end
+        end
+        function constructSubjectsStudy(varargin)
+            %% CONSTRUCTSUBJECTSSTUDY 
+            %  @param required foldersExpr is char, e.g., 'subjects/sub-S12345'.
+            
+            import mlan.*
+            import mlsystem.DirTool
+            import mlpet.SubjectResolveBuilder
+            
+            ip = inputParser;
+            ip.KeepUnmatched = true;
+            addRequired(ip, 'foldersExpr', @ischar)
+            addParameter(ip, 'makeClean', true, @islogical)
+            addParameter(ip, 'makeAligned', true, @islogical)
+            addParameter(ip, 'compositionTarget', '', @ischar)
+            addParameter(ip, 'blur', [], @(x) isnumeric(x) || ischar(x) || isstring(x))
+            parse(ip, varargin{:})
+            ipr = ip.Results;
+            ss = strsplit(ipr.foldersExpr, '/');
+            
+            subPath = fullfile(getenv('PROJECTS_DIR'), ss{1}, ss{2}, '');            
+            pwd0 = pushd(subPath);
+            subd = SubjectData('subjectFolder', ss{2});
+            sesf = subd.subFolder2sesFolder(ss{2});
+            sessd = SessionData( ...
+                'studyData', StudyData(), ...
+                'projectData', ProjectData('sessionStr', sesf), ...
+                'subjectData', subd, ...
+                'sessionFolder', sesf, ...
+                'tracer', 'HO', ...
+                'ac', true); % referenceTracer
+            if ~isempty(ipr.blur)
+                sessd.tracerBlurArg = TracerDirector2.todouble(ipr.blur);
+            end
+            srb = SubjectResolveBuilder('sessionData', sessd, 'makeClean', ipr.makeClean);
+            if ipr.makeAligned
+                
+                srb.alignCrossModal();
+                srb.t4_mul();
+                
+                %subjectSessionPath = fullfile(sessd.subjectPath, sessd.sessionFolder, '');
+                %mlbash(sprintf('cp -rf %s/*.4dfp.* .', subjectSessionPath))
+                %mlbash(sprintf('cp -rf %s/*_t4 .',     subjectSessionPath))
+                %mlbash(sprintf('cp -rf %s/*.mat .',    subjectSessionPath))
+                try
+                    srb.lns_json_all();
+                catch ME
+                    handwarning(ME)
+                end
+            end
+            srb.constructResamplingRestricted('compositionTarget', ipr.compositionTarget)
+            popd(pwd0)
         end
         
         function this = constructResolved(varargin)

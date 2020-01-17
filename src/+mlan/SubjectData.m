@@ -15,6 +15,29 @@ classdef SubjectData < mlnipet.SubjectData
         function obj = createProjectData(varargin)
             obj = mlan.ProjectData(varargin{:});
         end
+        function sesf = subFolder2sesFolders(subf)
+            %% requires well-defined cell-array this.subjectsJson.
+            %  @param subf is a subject folder.
+            %  @returns first-found non-trivial session folder in the subject folder.
+            
+            import mlan.SubjectData
+            json = mlan.StudyRegistry.instance().subjectsJson;
+            subjects = fields(json);
+            ss = split(subf, '-');
+            sesf = {};
+            for s = asrow(subjects)
+                subS = json.(s{1});
+                if lstrfind(subS.id, ss{2}) || lstrfind(subS.sid, ss{2})
+                    sesf = [sesf SubjectData.findExperiments(subS, subf)]; %#ok<AGROW>
+                end
+            end 
+        end
+        function sesf = subFolder2sesFolder(subf)
+            sesf = mlan.SubjectData.subFolder2sesFolders(subf);
+            if iscell(sesf)
+                sesf = sesf{1};
+            end
+        end
     end
 
 	methods        
