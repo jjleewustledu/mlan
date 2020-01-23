@@ -126,6 +126,7 @@ classdef TracerSuvrBuilder < mlfourdfp.AbstractSessionBuilder
                 sc = sc.blurred(4.3);
                 sc.fqfileprefix = fullfile(this.outpath, [ipr.physiol 'dt' sc.datestr() '_on_T1001']);
                 sc.save
+                this.saveasNifti(sc)
                 mlbash(sprintf('mv -f *_times*.4dfp.* %s', this.outpath))
                 prods = [prods {sc}];
             end
@@ -152,17 +153,21 @@ classdef TracerSuvrBuilder < mlfourdfp.AbstractSessionBuilder
             
             % assign cmro2, oef
             cmro2 = y - cbv .* beta2;
+            cmro2 = cmro2.scrubNegative();
             cmro2 = this.convertToPhysiol(cmro2, this.NORMAL_CMRO2);
             cmro2.fqfilename = fullfile(this.outpath, ['cmro2dt' this.datestr() '_on_T1001']);
             cmro2.save;  
+            this.saveasNifti(cmro2)
             
             oef = cmro2 ./ (cbf .* beta1);
             oef = oef .* msk;
             oef = oef.scrubNanInf();
             oef = oef.scrubNegative();
             oef = this.convertToPhysiol(oef, this.NORMAL_OEF);
+            oef = oef.scrubGt(1);
             oef.fqfilename = fullfile(this.outpath, ['oefdt' this.datestr() '_on_T1001']);
-            oef.save;   
+            oef.save; 
+            this.saveasNifti(oef)
                    
             this.product_ = {cmro2 oef msk};
         end  
@@ -225,7 +230,11 @@ classdef TracerSuvrBuilder < mlfourdfp.AbstractSessionBuilder
             ogi = mlfourd.ImagingContext(ogi);
             
             this.product_ = ogi;
-        end        
+        end   
+        function saveasNifti(~, suvrCon)
+            suvrCon.filesuffix = '.nii.gz';
+            suvrCon.save
+        end
     end
 
 	%  Created with Newcl by John J. Lee after newfcn by Frank Gonzalez-Morphy

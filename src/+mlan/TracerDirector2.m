@@ -267,6 +267,38 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             srb.constructResamplingRestricted('compositionTarget', ipr.compositionTarget)
             popd(pwd0)
         end
+        function constructSuvrStudy(varargin)            
+            %% CONSTRUCTSUVRSTUDY 
+            %  @param required foldersExpr is char, e.g., 'subjects/sub-S12345'.
+            
+            import mlan.*
+            
+            subglob = globFoldersT(fullfile(getenv('SUBJECTS_DIR'), 'sub-S*'));
+            parfor ig = 1:length(subglob)
+                try
+                    pwd0 = pushd(subglob{ig});
+
+                    subFold   = basename(subglob{ig});                
+                    studyData = mlan.StudyData();
+                    subjData  = mlan.SubjectData('subjectFolder', subFold);                
+                    sessf     = subjData.subFolder2sesFolder(subFold);
+                    projData  = mlan.ProjectData('sessionStr', sessf);
+                    sessData  = mlan.SessionData( ...
+                        'studyData', studyData, ...
+                        'projectData', projData, ...
+                        'subjectData', subjData, ...
+                        'sessionFolder', sessf, ...
+                        'tracer', 'HO', ...
+                        'ac', true);
+                    tsb = mlan.TracerSuvrBuilder('sessionData', sessData);
+                    tsb.buildAll()                
+
+                    popd(pwd0)            
+                catch ME
+                    handwarning(ME)
+                end
+            end
+        end
         
         function this = constructResolved(varargin)
             %  @param varargin for mlpet.TracerResolveBuilder.
