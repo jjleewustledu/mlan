@@ -94,6 +94,11 @@ classdef SessionData < mlnipet.ResolvingSessionData
             
             obj = this.visitMapOnAtl('agi', varargin{:});
         end
+        function obj  = visitMapOnAtl(this, map, varargin)
+            fqfn = fullfile(this.vLocation, ...
+                sprintf('%s_on_%s_%i%s', map, this.studyAtlas.fileprefix, this.atlVoxelSize, this.filetypeExt));
+            obj  = this.fqfilenameObject(fqfn, varargin{:});
+        end
                 
         %%
         
