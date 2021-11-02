@@ -58,9 +58,7 @@ classdef (Sealed) StudyRegistry < handle & mlnipet.StudyRegistry
     
 	methods (Access = private)		  
  		function this = StudyRegistry(varargin)
-            this = this@mlnipet.StudyRegistry(varargin{:});
-            setenv('CCIR_RAD_MEASUREMENTS_DIR',  ...
-                   fullfile(getenv('HOME'), 'Documents', 'private', ''));               
+            this = this@mlnipet.StudyRegistry(varargin{:});     
             this.referenceTracer = 'HO';
             this.umapType = 'pseudoct';
  		end
