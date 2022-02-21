@@ -8,7 +8,7 @@ classdef StudyData < handle & mlnipet.StudyData
  	
 	methods 		  
  		function this = StudyData(varargin)
- 			this = this@mlnipet.StudyData(mlan.StudyRegistry.instance(), varargin{:});
+ 			this = this@mlnipet.StudyData(mlan.Ccir993Registry.instance(), varargin{:});
  		end
  	end 
 

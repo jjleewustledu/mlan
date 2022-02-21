@@ -1,5 +1,5 @@
 classdef TracerDirector2 < mlnipet.CommonTracerDirector
-	%% TRACERDIRECTOR2  
+	%% TRACERDIRECTOR2 forms a builder pattern with builders configured by mlan.Ccir993Registry.
 
 	%  $Revision$
  	%  was created 17-Nov-2018 10:26:34 by jjlee,
@@ -114,7 +114,7 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             parse(ip, varargin{:});
             ipr = TracerDirector2.adjustIprConstructResolvedStudy(ip.Results);
             
-            registry = StudyRegistry.instance();
+            registry = mlan.Ccir993Registry.instance();
             for p = globT(fullfile(registry.projectsDir, ipr.projectsExpr))
                 for s = globT(fullfile(p{1}, ipr.sessionsExpr))
                     pwd0 = pushd(s{1});                    

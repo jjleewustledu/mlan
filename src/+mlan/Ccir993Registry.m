@@ -1,4 +1,4 @@
-classdef (Sealed) StudyRegistry < handle & mlnipet.StudyRegistry
+classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
 	%% STUDYREGISTRY 
 
 	%  $Revision$
@@ -10,19 +10,18 @@ classdef (Sealed) StudyRegistry < handle & mlnipet.StudyRegistry
  	
     properties
         ignoredExperiments = {}
+        referenceTracer = 'HO'
         tracerList = {'oc' 'oo' 'ho'}
+        umapType = 'deep'
     end
     
     properties (Dependent)
+        projectsDir
+        subjectsDir	
         subjectsJson
     end
     
     methods (Static)
-        function sub  = subjectID_to_sub(sid)
-            assert(ischar(sid));
-            ss = strsplit(sid, '_');
-            sub = ['sub-' ss{end}];
-        end
         function this = instance(varargin)
             %% INSTANCE
             %  @param optional qualifier is char \in {'initialize' ''}
@@ -36,7 +35,7 @@ classdef (Sealed) StudyRegistry < handle & mlnipet.StudyRegistry
                 uniqueInstance = [];
             end          
             if (isempty(uniqueInstance))
-                this = mlan.StudyRegistry();
+                this = mlan.Ccir993Registry();
                 uniqueInstance = this;
             else
                 this = uniqueInstance;
@@ -46,8 +45,22 @@ classdef (Sealed) StudyRegistry < handle & mlnipet.StudyRegistry
     
     methods
         
-        %% GET        
+        %% GET
         
+        function g = get.projectsDir(~)
+            g = getenv('PROJECTS_DIR');
+        end 
+        function     set.projectsDir(~, s)
+            assert(isfolder(s));
+            setenv('PROJECTS_DIR', s);
+        end  
+        function g = get.subjectsDir(~)
+            g = getenv('SUBJECTS_DIR');
+        end        
+        function     set.subjectsDir(~, s)
+            assert(isfolder(s));
+            setenv('SUBJECTS_DIR', s);
+        end
         function g = get.subjectsJson(~)
             g = jsondecode( ...
                 fileread(fullfile(getenv('SUBJECTS_DIR'), 'constructed_20191108.json')));
@@ -57,10 +70,8 @@ classdef (Sealed) StudyRegistry < handle & mlnipet.StudyRegistry
     %% PRIVATE
     
 	methods (Access = private)		  
- 		function this = StudyRegistry(varargin)
-            this = this@mlnipet.StudyRegistry(varargin{:});     
-            this.referenceTracer = 'HO';
-            this.umapType = 'pseudoct';
+ 		function this = Ccir993Registry(varargin)
+            this = this@mlnipet.StudyRegistry(varargin{:});
  		end
     end 
 

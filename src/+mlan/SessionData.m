@@ -1,4 +1,4 @@
-classdef SessionData < mlnipet.ResolvingSessionData
+classdef SessionData < mlnipet.MetabolicSessionData
 	%% SESSIONDATA  
 
 	%  $Revision$
@@ -13,6 +13,7 @@ classdef SessionData < mlnipet.ResolvingSessionData
     end
     
     properties
+        registry
         tracers = {'ho' 'oo' 'oc'}
     end
     
@@ -21,18 +22,16 @@ classdef SessionData < mlnipet.ResolvingSessionData
             % @param folders ~ <project folder>/<session folder>/<scan folder>, in getenv('SINGULARITY_HOME')
             % @param ignoreFinishMark is logical, default := false
             
-            import mlan.*
-
             ip = inputParser;
             addRequired(ip, 'folders', @(x) isfolder(fullfile(getenv('SINGULARITY_HOME'), x)))
             addParameter(ip, 'ignoreFinishMark', false, @islogical);
             parse(ip, varargin{:});
             ipr = adjustIpr(ip.Results);
     
-            this = SessionData( ...
-                'studyData', StudyRegistry.instance(), ...
-                'projectData', ProjectData('projectFolder', ipr.prjfold), ...
-                'subjectData', SubjectData(), ...
+            this = mlan.SessionData( ...
+                'studyData', mlan.Ccir993Registry.instance(), ...
+                'projectData', mlan.ProjectData('projectFolder', ipr.prjfold), ...
+                'subjectData', mlan.SubjectData(), ...
                 'sessionFolder', ipr.sesfold, ...
                 'scanFolder', ipr.scnfold);
             this.ignoreFinishMark = ipr.ignoreFinishMark;            
@@ -96,14 +95,14 @@ classdef SessionData < mlnipet.ResolvingSessionData
         end
         function obj  = visitMapOnAtl(this, map, varargin)
             fqfn = fullfile(this.vLocation, ...
-                sprintf('%s_on_%s_%i%s', map, this.studyAtlas.fileprefix, this.atlVoxelSize, this.filetypeExt));
+                sprintf('%s_on_%s%s%s', map, this.studyAtlas.fileprefix, this.atlasTag, this.filetypeExt));
             obj  = this.fqfilenameObject(fqfn, varargin{:});
         end
                 
         %%
         
       	function this = SessionData(varargin)
- 			this = this@mlnipet.ResolvingSessionData(varargin{:}); 
+ 			this = this@mlnipet.MetabolicSessionData(varargin{:}); 
             if isempty(this.studyData_)
                 this.studyData_ = mlan.StudyData();
             end

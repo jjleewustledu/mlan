@@ -21,7 +21,7 @@ classdef SubjectData < mlnipet.SubjectData
             %  @returns first-found non-trivial session folder in the subject folder.
             
             import mlan.SubjectData
-            json = mlan.StudyRegistry.instance().subjectsJson;
+            json = mlan.Ccir993Registry.instance().subjectsJson;
             subjects = fields(json);
             ss = split(subf, '-');
             sesf = {};
@@ -47,7 +47,7 @@ classdef SubjectData < mlnipet.SubjectData
 
  			this = this@mlnipet.SubjectData(varargin{:});
 
-            this.studyRegistry_ = mlan.StudyRegistry.instance;
+            this.studyRegistry_ = mlan.Ccir993Registry.instance;
             this.subjectsJson_ = this.studyRegistry_.subjectsJson;
  		end
     end 
