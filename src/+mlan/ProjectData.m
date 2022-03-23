@@ -1,4 +1,4 @@
-classdef ProjectData < mlnipet.ProjectData
+classdef ProjectData < mlpipeline.ProjectData
 	%% PROJECTDATA  
 
 	%  $Revision$
@@ -16,7 +16,7 @@ classdef ProjectData < mlnipet.ProjectData
         %% GET
         
         function g    = get.jsonDir(~)
-            g = mlan.Ccir993Registry.instance().subjectsDir;
+            g = fullfile(this.projectsDir, this.projectFolder_);
         end        
         function g    = get.projectsDir(~)
             g = mlan.Ccir993Registry.instance().projectsDir;
@@ -34,7 +34,7 @@ classdef ProjectData < mlnipet.ProjectData
  			%% PROJECTDATA
  			%  @param .
 
- 			this = this@mlnipet.ProjectData(varargin{:});
+ 			this = this@mlpipeline.ProjectData(varargin{:});
             this.projectFolder_ = 'CCIR_00993';
  		end
     end 
