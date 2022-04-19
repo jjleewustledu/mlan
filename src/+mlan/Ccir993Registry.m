@@ -31,9 +31,11 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
     end  
     
     properties
+        Ddatetime0 % seconds
         ignoredExperiments = {}
         projectFolder = 'CCIR_00993'
         referenceTracer = 'HO'
+        T = 10 % sec at the start of artery_interpolated used for model but not described by scanner frames
         tracerList = {'oc' 'oo' 'ho'}
         umapType = 'deep'
     end
@@ -44,6 +46,7 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
         sessionsDir
         subjectsDir	
         subjectsJson
+        tBuffer
     end
     
     methods
@@ -68,6 +71,9 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
                     fileread(fullfile(this.projectsDir, this.projectFolder, 'constructed_20191108.json')));
             end
             g = this.subjectsJson_;
+        end
+        function g = get.tBuffer(this)
+            g = max(0, -this.Ddatetime0) + this.T;
         end
 
         %%
