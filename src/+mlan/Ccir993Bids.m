@@ -97,6 +97,12 @@ classdef Ccir993Bids < handle & mlpipeline.IBids
         sourceAnatPath
         sourcePetPath
         subjectFolder
+
+        T1_ic % FreeSurfer
+        t1w_ic
+        tof_ic
+        tof_mask_ic
+        wmparc_ic % FreeSurfer
     end
 
 	methods
@@ -147,6 +153,63 @@ classdef Ccir993Bids < handle & mlpipeline.IBids
             g = this.subjectFolder_;
         end
 
+        function g = get.T1_ic(this)
+            g = this.t1w_ic;
+        end
+        function g = get.t1w_ic(this)
+            if ~isempty(this.t1w_ic_)
+                g = copy(this.t1w_ic_);
+                return
+            end
+            fn = fullfile(this.anatPath, 'T1001.nii.gz');
+            assert(isfile(fn))
+            this.t1w_ic_ = mlfourd.ImagingContext2(fn);
+            this.t1w_ic_.selectNiftiTool();
+            this.t1w_ic_.filepath = this.anatPath;
+            this.t1w_ic_.save();
+            g = copy(this.t1w_ic_);
+        end
+        function g = get.tof_ic(this)
+            if ~isempty(this.tof_ic_)
+                g = copy(this.tof_ic_);
+                return
+            end
+            g = globT(fullfile(this.anatPath, '*TOF*.nii.gz'));
+            assert(~isempty(g))
+            fn = g{end};
+            assert(isfile(fn))
+            this.tof_ic_ = mlfourd.ImagingContext2(fn);
+            this.tof_ic_.selectNiftiTool();
+            this.tof_ic_.filepath = this.anatPath;
+            this.tof_ic_.fileprefix = 'tof';
+            this.tof_ic_.save();
+            g = copy(this.tof_ic_);
+        end
+        function g = get.tof_mask_ic(this)
+            if ~isempty(this.tof_mask_ic_)
+                g = copy(this.tof_mask_ic_);
+                return
+            end
+            tmp_ = this.tof_ic.blurred(6);
+            tmp_ = tmp_.thresh(30);
+            tmp_ = tmp_.binarized();
+            this.tof_mask_ic_ = tmp_;
+            g = copy(this.tof_mask_ic_);
+        end
+        function g = get.wmparc_ic(this)
+            if ~isempty(this.wmparc_ic_)
+                g = copy(this.wmparc_ic_);
+                return
+            end
+            fn = fullfile(this.anatPath, 'wmparc.nii.gz');
+            assert(isfile(fn))
+            this.wmparc_ic_ = mlfourd.ImagingContext2(fn);
+            this.wmparc_ic_.selectNiftiTool();
+            this.wmparc_ic_.filepath = this.anatPath;
+            this.wmparc_ic_.save();
+            g = copy(this.wmparc_ic_);
+        end
+        
         %%
 
  		function this = Ccir993Bids(varargin)
