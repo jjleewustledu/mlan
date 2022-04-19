@@ -42,48 +42,74 @@ classdef DeepUmapBuilder < mlfourdfp.AbstractSessionBuilder
             this = this@mlfourdfp.AbstractSessionBuilder(varargin{:});
         end
 
-        function ic = buildUmap(this, varargin)
+        function umap = buildUmap(this, varargin)
             %  Returns:
-            %      ic: umap temporally closest to scan, registered to T1001, located in this.sessionData.scanPath.
+            %      umap: umap temporally closest to scan, registered to T1001, 
+            %            in this.sessionData.scanPath/deepumap.4dfp.hdr.
 
-            pwd0 = pushd(this.sessionData.scanPath);
+            s = this.sessionData;
 
-            umap = this.sessionData.deepumap('typ', 'mlfourd.ImagingContext2');
+            umap = s.deepumap('typ', 'mlfourd.ImagingContext2'); % temporally closest NIfTI                                                                 % 
             umap.selectFourdfpTool();
-            umap.fqfileprefix = fullfile(this.sessionData.umapPath, 'deepumap');
-            if ~isfile(umap.fqfn); umap.save(); end
+            if dipmax(umap) > 10
+                umap = umap ./ 10000; % rescale to bone ~ 0.1 as expected by NiftyPET
+            end
+            umap.ensureSingle();
+            umap.fqfp = fullfile(s.scanPath, 'umapSynth');
+            umap.save(); % scanPath/deepumap.4dfp.hdr
 
-            mpr = this.sessionData.T1001('typ', 'mlfourd.ImagingContext2');
+            mpr = s.mpr('typ', 'mlfourd.ImagingContext2');
             mpr.selectFourdfpTool();
-            if ~isfile(mpr.fqfn); mpr.save(); end
+            mpr.fqfp = fullfile(s.scanPath, 'T1001');
+            mpr.save(); % scanPath/T1001.4dfp.hdr
 
-            umap_on_mpr= this.buildVisitor.CT2mpr_4dfp(mpr.fqfp, umap.fqfp);
-            ic = mlfourd.ImagingContext2(umap_on_mpr);
-            ic.selectFourdfpTool();
-
+            pwd0 = pushd(s.scanPath);
+            this.buildVisitor.mpr2atl_4dfp(mpr.fileprefix);
+            umap_on_mpr = this.buildVisitor.CT2mpr_4dfp( ...
+                mpr.fileprefix, umap.fileprefix, 'options', strcat('-T', this.atlas('typ','fqfp')));
+            umap = mlfourd.ImagingContext2(umap_on_mpr);
             popd(pwd0)
         end
-        function this = prepareMprToAtlasT4(this)
+        function [this,t4_fqfn] = prepareMprToAtlasT4(this)
             %% PREPAREMPRTOATLAST4
             %  @param this.sessionData.{mprage,atlas} are valid.
             %  @return this.product_ := [mprage '_to_' atlas '_t4'], existing in the same folder as mprage.
-            %  TODO:  return fqfn t4.
+            %  @return t4_fqfn.
             
             s = this.sessionData;
-            t4 = [              s.mprage('typ', 'fp') '_to_' s.atlas('typ', 'fp') '_t4'];            
-            if ~isfile(fullfile(s.mprage('typ', 'path'), t4)) && ~this.sessionData.noclobber
-                pwd0 = pushd(   s.mprage('typ', 'path'));
-                this.buildVisitor.msktgenMprage(s.mprage('typ', 'fp'));
-                popd(pwd0);
+            t4 = strcat(s.mprage('typ', 'fp'), '_to_', s.atlas('typ', 'fp'), '_t4');
+            t4_fqfn = fullfile(s.mprage('typ', 'path'), t4);
+            if isfile(t4_fqfn)
+                return
             end
-            this.product_ = t4;
+
+            pwd0 = pushd(s.mprage('typ', 'path'));
+            this.buildVisitor.msktgenMprage(s.mprage('typ', 'fp'));
+            popd(pwd0);
+            this.product_ = t4_fqfn;
         end
         function teardownBuildUmaps(this)
             this.teardownLogs;
             this.teardownT4s;
             this.finished.markAsFinished( ...
                 'path', this.logger.filepath, 'tag', [this.finished.tag '_' myclass(this) '_teardownBuildUmaps']); 
+        end        
+        function     teardownLogs(this)
+            ensuredir(this.getLogPath);
+            try
+                movefiles('*.log', this.getLogPath); 
+                movefiles('*.txt', this.getLogPath);   
+                movefiles('*.lst', this.getLogPath);    
+                movefiles('*.mat0', this.getLogPath);   
+                movefiles('*.sub', this.getLogPath); 
+            catch ME
+                dispwarning(ME, 'mlfourdfp:RuntimeWarning', ...
+                    'PseudoCTBuilder.teardownLogs failed to move files into %s', this.getLogPath);
+            end
         end
+        function     teardownT4s(this)
+            if (this.keepForensics); return; end
+        end 
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
