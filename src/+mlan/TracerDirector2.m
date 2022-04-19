@@ -4,7 +4,7 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
 	%  $Revision$
  	%  was created 17-Nov-2018 10:26:34 by jjlee,
  	%  last modified $LastChangedDate$ and placed into repository /Users/jjlee/MATLAB-Drive/mlan/src/+mlan.
- 	%% It was developed on Matlab 9.4.0.813654 (R2018a) for MACI64.  Copyright 2018 John Joowon Lee.
+ 	 %% It was developed on Matlab 9.4.0.813654 (R2018a) for MACI64.  Copyright 2018 John Joowon Lee.
  	
     methods (Static)
         function ic2 = addMirrorUmap(ic2, sessd)
@@ -318,33 +318,31 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             %  @param varargin for mlpet.TracerResolveBuilder.
             %  @return ignores the first frame of OC and OO which are NAC since they have breathing tube visible.  
             %  @return umap files generated per motionUncorrectedUmap ready
-            %  for use by TriggeringTracers.js; 
-            %  sequentially run FDG NAC, 15O NAC, then all tracers AC.
-            %  @return this.sessionData.attenuationCorrection == false.
+            %               for use by TriggeringTracers.js; 
+            %               sequentially run FDG NAC, 15O NAC, then all tracers AC.
+            %  @return mlan.TracerDirector2
                       
             this = mlan.TracerDirector2(mlan.TracerResolveBuilder(varargin{:}));
-            %this.fastFilesystemSetup;
             if (~this.sessionData.attenuationCorrected)
                 %this.populateTracerUmapFolder()
                 if ~isfile(this.sessionData.umapSynthOpT1001)
                     this.constructUmaps(varargin{:})
                 end
                 this = this.instanceConstructResolvedNAC;
-                %this.fastFilesystemTeardownWithAC(true); % intermediate artifacts
             else
                 this = this.instanceConstructResolvedAC;
             end
-            %this.fastFilesystemTeardown;
-            %this.fastFilesystemTeardownProject;
         end
         function umap = constructUmaps(varargin)
+            %% Constructs single volume umapSynth_on_{T1001,T1001_b43,TRIO_Y_NDC_[123]{3}}.4dfp.*
+            %  in sessionData.scanPath for ~sessionData.attenuationCorrected.
             %  Args:  
             %      sessionData (mlpipeline.ISessionData): passed to builder.
             %      umapType (text): default is from mlan.Ccir993Registry.
             %      see also mlan.DeepUmapBuilder, mlfourdfp.{MRACHiresUmapBuilder, PseudoCTBuilder}
             
             import mlan.TracerDirector2;
-            import mlfourd.ImagingContext2;  
+            import mlfourd.ImagingContext2;
 
             ip = inputParser;
             ip.KeepUnmatched = true;
@@ -355,27 +353,42 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
 
             switch ipr.umapType
                 case 'deep'
-                    umap = TracerDirector2(mlan.DeepUmapBuilder(varargin{:}));
-                    umap.builder_ = umap.builder.prepareMprToAtlasT4;
+                    this = TracerDirector2(mlan.DeepUmapBuilder(varargin{:}));
+                    [this.builder_,t4] = this.builder.prepareMprToAtlasT4;
+
+                    pwd0 = pushd(this.sessionData.scanPath);
+                    copyfile(t4); % create scanPath/mpr_to_atl_t4
+                    umap = this.builder.buildUmap;
+                    umap = umap.blurred(mlsiemens.MMRRegistry.instance().petPointSpread);
+                    umap.save;
+                    this.builder_ = this.builder.packageProduct(umap);
+                    this.builder.teardownBuildUmaps;
+                    popd(pwd0);
                 case 'mrac_hires'
-                    umap = TracerDirector2(mlfourdfp.MRACHiresUmapBuilder(varargin{:}));
-                    umap.builder_ = umap.builder.prepareMprToAtlasT4;
+                    this = TracerDirector2(mlfourdfp.MRACHiresUmapBuilder(varargin{:}));
+                    this.builder_ = this.builder.prepareMprToAtlasT4;
+
+                    pwd0 = pushd(this.sessionData.sessionPath);
+                    umap = this.builder.buildUmap;
+                    umap = umap.blurred(mlsiemens.MMRRegistry.instance().petPointSpread);
+                    umap.save;
+                    this.builder_ = this.builder.packageProduct(umap);
+                    this.builder.teardownBuildUmaps;
+                    popd(pwd0);
                 case 'pseudoct'
-                    umap = TracerDirector2(mlfourdfp.PseudoCTBuilder(varargin{:}));
-                    umap.builder_ = umap.builder.prepareMprToAtlasT4;
+                    this = TracerDirector2(mlfourdfp.PseudoCTBuilder(varargin{:}));
+                    this.builder_ = this.builder.prepareMprToAtlasT4;
+
+                    pwd0 = pushd(this.sessionData.sessionPath);
+                    umap = this.builder.buildUmap;
+                    umap = umap.blurred(mlsiemens.MMRRegistry.instance().petPointSpread);
+                    umap.save;
+                    this.builder_ = this.builder.packageProduct(umap);
+                    this.builder.teardownBuildUmaps;
+                    popd(pwd0);
                 otherwise
                     error('mlan:ValueError', 'TracerDirector2.constructUmaps')
-            end
-            
-            pwd0 = pushd(umap.sessionData.sessionPath);
-            umap = umap.builder.buildUmap;
-            umap = ImagingContext2(umap);
-            umap = umap.blurred(mlsiemens.MMRRegistry.instance().petPointSpread);
-            umap.save;
-            umap.builder_ = umap.builder.packageProduct(umap);
-            umap.builder.teardownBuildUmaps;
-            popd(pwd0);
-            
+            end            
             %this.populateTracerUmapFolder()
         end
     end
