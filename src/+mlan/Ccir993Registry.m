@@ -54,7 +54,11 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
         %% GET
         
         function g = get.projectsDir(~)
-            g = getenv('SINGULARITY_HOME');
+            if contains(hostname, 'precuneal')
+                g = fullfile(getenv('HOME'), 'Singularity');
+            else
+                g = '/data/anlab/jjlee/Singularity';
+            end
         end
         function x = get.rawdataDir(this)
             x = fullfile(this.projectsDir, this.projectFolder, 'rawdata');
