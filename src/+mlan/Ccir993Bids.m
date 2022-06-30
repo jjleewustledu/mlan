@@ -49,8 +49,46 @@ classdef Ccir993Bids < handle & mlpipeline.IBids
 
             popd(pwd0);
         end
+        function create_tracer_folders(rawdata_dir)
+            assert(isfolder(rawdata_dir));
+            
+            pwd0 = pushd(rawdata_dir);
+            for g = glob('*.dcm')'
+                info = dicominfo(g{1});
+                d = mlan.Ccir993Bids.tracer_folder_from_dicominfo(info, 'Listmode');
+                if ~isempty(d)
+                    ensuredir(d);
+                    movefile(info.Filename, d);
+                    bf = strrep(info.Filename, '.dcm', '.bf');
+                    movefile(bf, d);
+                end
+            end
+            for g = glob('*.dcm')'
+                info = dicominfo(g{1});
+                d = mlan.Ccir993Bids.tracer_folder_from_dicominfo(info, 'Normalization');
+                if ~isempty(d)
+                    d = mlan.Ccir993Bids.ensure_norm_dir(d, info);
+                    movefile(info.Filename, d);
+                    bf = strrep(info.Filename, '.dcm', '.bf');
+                    movefile(bf, d);
+                end
+            end
+            popd(pwd0);
+        end
         function [s,r] = dcm2niix(varargin)
             [s,r] = mlpipeline.Bids.dcm2niix(varargin{:});
+        end
+        function d = ensure_norm_dir(d, info)
+            if ~isfolder(fullfile(fileparts(d), 'LM'))
+                % adjust SeriesTime coded in d
+                d_ = strrep(d, info.SeriesTime, [info.SeriesTime(1:4), '*']); % replace seconds
+                g = glob(d_);
+                if ~isempty(g)
+                    d = g{1};
+                    ensuredir(d);
+                end
+            end
+            ensuredir(d);
         end
         function tf = isdynamic(obj)
             tf = ~isstatic(obj);
@@ -75,6 +113,45 @@ classdef Ccir993Bids < handle & mlpipeline.IBids
                 tr = upper(re.tr);
             end
         end
+        function c = tracer_code_from_dicominfo(info)
+            assert(isstruct(info));
+
+            txt = fileread(info.Filename);
+            idx = strfind(txt, 'Radiopharmaceutical:');
+            re = regexp(txt(idx:idx+100), 'Radiopharmaceutical:(?<trc>(\S+|\S+ \S+))\s*RadiopharmaceuticalStartTime:\S*', 'names');
+            switch re.trc
+                case 'Carbon monoxide'
+                    c = 'OC';
+                case 'Oxygen'
+                    c = 'OO';
+                case 'Oxygen-water'
+                    c = 'HO';
+                case 'Fluorodeoxyglucose'
+                    c = 'FDG';
+                otherwise
+                    error('mlan:ValueError', ...
+                        'Ccir993Bids.tracer_code_from_dicominfo does not recognize Radiopharmaceutical:%s', re.trc);
+            end
+        end
+        function d = tracer_folder_from_dicominfo(info, type)
+            assert(isstruct(info));
+
+            if contains(info.ImageComments, 'Listmode') && strcmpi(type, 'Listmode')
+                trc = mlan.Ccir993Bids.tracer_code_from_dicominfo(info);
+                ses_d = fileparts(fileparts(info.Filename));
+                trc_f = sprintf('%s_DT%s%s-Converted-NAC', trc, info.AcquisitionDate, info.AcquisitionTime);
+                d = fullfile(ses_d, trc_f, 'LM', '');
+                return
+            end
+            if contains(info.ImageComments, 'Normalization') && strcmpi(type, 'Normalization')
+                trc = mlan.Ccir993Bids.tracer_code_from_dicominfo(info);
+                ses_d = fileparts(fileparts(info.Filename));
+                trc_f = sprintf('%s_DT%s%s-Converted-NAC', trc, info.AcquisitionDate, info.SeriesTime);
+                d = fullfile(ses_d, trc_f, 'norm', '');
+                return
+            end
+            d = '';
+        end        
     end
 
     properties (Constant)
