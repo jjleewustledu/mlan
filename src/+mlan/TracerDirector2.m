@@ -22,21 +22,6 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
                     'CommonTracerDirector.addMirrorUmap could not generate registered mirror umap')
             end   
         end
-        function ipr = adjustIprConstructResolvedStudy(ipr)
-            %% adjusts ip.Results with new fields: 'projectsExpr', 'sessionsExpr', 'tracersExpr'.
-
-            ss = strsplit(ipr.foldersExpr, filesep);
-            assert(3 == length(ss));
-            ipr.projectsExpr = ss{contains(ss, 'CCIR_')};
-            ipr.sessionsExpr = ss{contains(ss, 'ses-')};
-            ipr.tracersExpr = ss{contains(ss, 'Converted-')};
-            results = {'projectsExpr' 'sessionsExpr' 'tracersExpr'};
-            for r = 1:length(results)
-                if (~lstrfind(ipr.(results{r}), '*'))
-                    ipr.(results{r}) = [ipr.(results{r}) '*'];
-                end
-            end
-        end 
         function umap = alignMirrorUmapToOO(sessd)
             pwd0 = pushd(sessd.tracerOutputPetLocation());
             
@@ -98,6 +83,73 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
                 ic2.save
             end
         end 
+        function this = constructFromScanPath(fold)
+            %%
+            %  Args:
+            %      fold (folder): e.g., '/data/anlab/jjlee/Singularity/CCIR_00993/derivatives/nipet/ses-E19850/HO_DT20200110105904.000000-Converted-NAC'
+
+            assert(isfolder(fold));
+            assert(contains(fold, 'ses-E'));
+            assert(contains(fold, '-Converted-'));
+            sessd = mlan.SessionData.create(fold);
+            this = mlan.TracerDirector2(mlan.TracerResolveBuilder('sessionData', sessd));
+        end
+        function this = constructFromSessionPath(fold)
+            %%
+            %  Args:
+            %      fold (folder): e.g., '/data/anlab/jjlee/Singularity/CCIR_00993/derivatives/nipet/ses-E19850'
+
+            assert(isfolder(fold));
+            sessd = mlan.SessionData.create(truncfile(fold, 'ses-E'));
+            this = mlan.TracerDirector2(mlan.TracerResolveBuilder('sessionData', sessd));
+        end
+        function constructNiftypet2(varargin)
+            %%
+            %  Args:
+            %      folders_expr (text): e.g., '/data/anlab/jjlee/Singularity/CCIR_00993/derivatives/nipet/ses-E19850'
+
+            ip = inputParser;
+            addRequired(ip, 'folders_expr', @istext);
+            parse(ip, varargin{:});
+            ipr = ip.Results;
+
+            for g = globFolders(ipr.folders_expr)'
+
+                %% not attenuation corrected ------------------------------
+
+                nacs = globFolders(fullfile(g{1}, '*_DT*-Converted-NAC'))';
+                nacs = nacs(~contains(nacs, 'FDG'));
+                parfor ni = 1:length(nacs)
+                    this = mlan.TracerDirector2.constructFromScanPath(nacs{ni});
+                    this.step0();
+                end
+                for ni = 1:length(nacs)
+                    this = mlan.TracerDirector2.constructFromScanPath(nacs{ni});
+                    this.step_dynamic();
+                end
+                parfor ni = 1:length(nacs)
+                    this = mlan.TracerDirector2.constructFromScanPath(nacs{ni});
+                    this.step_resolve();  
+                end
+
+                %% attenuation corrected --------------------------------
+
+                acs = globFolders(fullfile(g{1}, '*_DT*-Converted-AC'))';
+                acs = acs(~contains(acs, 'FDG'));
+                for ai = 1:length(acs)
+                    this = mlan.TracerDirector2.constructFromScanPath(acs{ai});
+                    this.step_dynamic();
+                end
+                parfor ai = 1:length(acs)
+                    this = mlan.TracerDirector2.constructFromScanPath(acs{ai});
+                    this.step_resolve();  
+                end
+
+                %% co-register all images for subject, resampling restricted
+                %  see also:  constructSessionsStudy, constructSubjectsStudy
+
+            end
+        end
         function constructResolvedStudy(varargin)
             %% CONSTRUCTRESOLVEDSTUDY supports t4_resolve for niftypet.  It provides iterators for 
             %  project, session and tracer folders on the filesystem.  It provides top-level delegation for 
@@ -107,10 +159,11 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             %          e.g.:  >> construct_resolved('CCIR_00123/ses-E0012*/OO_DT*-Converted-NAC')
             %          e.g.:  >> construct_resolved('CCIR_00993/derivatives/nipet/ses-E03140/HO_DT20190530111122.000000-Converted-NAC')
             %
-            %  @precondition s = mlan.SessionData.create();
+            %  @precondition s = SessionData.create();
             %  @precondition files{.bf,.dcm} in fullfile(s.sessionPath, 'LM', '')
             %  @precondition files{.bf,.dcm} in fullfile(s.sessionPath, 'norm', '')
             %  @precondition FreeSurfer recon-all results in fullfile(s.sessionPath, 'mri', '')
+            %  @precondition fullfile(s.sessionPath, 'umap', '')
             %  @param foldersExpr is text.
             %  @return results in s.scanPath specified by adjustIprConstructResolvedStudy().
             %
@@ -118,30 +171,28 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             %         Singularity use cases.
             
             import mlan.*; %#ok<NSTIMP>
-            import mlsystem.DirTool;
-            import mlpet.DirToolTracer;
             
             ip = inputParser;
             ip.KeepUnmatched = true;
             addRequired( ip, 'foldersExpr', @ischar)
             addParameter(ip, 'ignoreFinishMark', false, @islogical);
             parse(ip, varargin{:});
-            ipr = mlan.TracerDirector2.adjustIprConstructResolvedStudy(ip.Results);
+            ipr = TracerDirector2.adjustIprConstructResolvedStudy(ip.Results);
             
             reg = mlan.Ccir993Registry.instance();
             for p = globT(fullfile(reg.projectsDir, ipr.projectsExpr))
-                for s = globT(fullfile(p{1}, ipr.sessionsExpr))
+                for s = globT(fullfile(p{1}, 'derivatives', 'nipet', ipr.sessionsExpr))
                     pwd0 = pushd(s{1});                    
                             
                     for t = globT(ipr.tracersExpr)
                         try
-                            folders = fullfile(basename(p{1}), 'derivatives', 'nipet', basename(s{1}), t{1});
-                            sessd = mlan.SessionData.create(folders, 'ignoreFinishMark', ipr.ignoreFinishMark);
-                            if ~isfile(fullfile(sessd.umapSynthOpT1001('typ','fqfn')))
-                                mlan.TracerDirector2.constructUmaps('sessionData', sessd, 'umapType', reg.umapType);
-                            end
+                            folders = fullfile(p{1}, 'derivatives', 'nipet', basename(s{1}), t{1});
+                            sessd = SessionData.create(folders, 'ignoreFinishMark', ipr.ignoreFinishMark);
+                            %if ~isfile(fullfile(sessd.umapSynthOpT1001('typ','fqfn')))
+                            %    TracerDirector2.constructUmaps('sessionData', sessd, 'umapType', reg.umapType);
+                            %end
                             if isempty(glob(fullfile(sessd.tracerLocation, 'umap', '*')))
-                                this.populateTracerUmapFolder()
+                                TracerDirector2.populateTracerUmapFolder('sessionData', sessd)
                             end
                             if ~isfolder(sessd.tracerOutputLocation())
                                 continue
@@ -152,7 +203,7 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
                             fprintf(['\tsessd.tracerLocation->' sessd.tracerLocation '\n']);
                             
                             warning('off', 'MATLAB:subsassigndimmismatch');
-                            mlan.TracerDirector2.constructResolved('sessionData', sessd);
+                            TracerDirector2.constructResolved('sessionData', sessd);
                             warning('on',  'MATLAB:subsassigndimmismatch');
                         catch ME
                             dispwarning(ME)
@@ -239,19 +290,19 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             
             ip = inputParser;
             ip.KeepUnmatched = true;
-            addRequired(ip, 'foldersExpr', @ischar)
+            addRequired(ip, 'foldersExpr', @isfolder)
             addParameter(ip, 'makeClean', true, @islogical)
             addParameter(ip, 'makeAligned', true, @islogical)
-            addParameter(ip, 'compositionTarget', '', @ischar)
+            addParameter(ip, 'compositionTarget', 'subjectT1001', @ischar)
             addParameter(ip, 'blur', [], @(x) isnumeric(x) || ischar(x) || isstring(x))
             parse(ip, varargin{:})
             ipr = ip.Results;
             ss = strsplit(ipr.foldersExpr, '/');
             
-            subjectPath = fullfile(getenv('PROJECTS_DIR'), ss{1}, ss{2}, '');            
+            subjectPath = ipr.foldersExpr;         
             pwd0 = pushd(subjectPath);
-            subd = SubjectData('subjectFolder', ss{2});
-            sesf = subd.subFolder2sesFolder(ss{2});
+            subd = SubjectData('subjectFolder', ss{end});
+            sesf = subd.subFolder2sesFolder(ss{end});
             sessd = SessionData( ...
                 'studyData', StudyData(), ...
                 'projectData', ProjectData('sessionStr', sesf), ...
@@ -266,7 +317,18 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             if ipr.makeAligned
                 
                 srb.alignCrossModal();
+    
+                if ~isfile(fullfile(subjectPath, 'T1001.4dfp.hdr'))
+                    g = glob(fullfile(subjectPath, 'ses-E*', 'T1001.4dfp.hdr'));
+                    fp = myfileprefix(g{end});
+                    for x = {'.4dfp.hdr', '.4dfp.ifh', '.4dfp.img', '.4dfp.img.rec'}
+                        mlbash(sprintf('ln -s %s %s', [fp x{1}], fullfile(subjectPath, ['T1001' x{1}])));
+                    end
+                end
+
+                srb.workpath = fullfile(sessd.subjectPath, sessd.sessionFolder);
                 srb.t4_mul();
+                srb.workpath = sessd.subjectPath;
                 
                 %subjectSessionPath = fullfile(sessd.subjectPath, sessd.sessionFolder, '');
                 %mlbash(sprintf('cp -rf %s/*.4dfp.* .', subjectSessionPath))
@@ -386,6 +448,22 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
                     this.builder_ = this.builder.packageProduct(umap);
                     this.builder.teardownBuildUmaps;
                     popd(pwd0);
+                case 'ct'                    
+                    this = TracerDirector2(mlfourdfp.CarneyUmapBuilder2(varargin{:}));
+                    this.builder_ = this.builder.prepareMprToAtlasT4;
+
+                    pwd0 = pushd(this.sessionData.sessionPath);
+                    umap = this.builder.buildUmap;
+                    umap.save;
+                    this.builder_ = this.builder.packageProduct(umap);
+                    this.builder.teardownBuildUmaps;
+                    popd(pwd0);
+                case 'nalgene_large'
+                    this = TracerDirector2(mlan.DeepUmapBuilder(varargin{:}));
+
+                    pwd0 = pushd(this.sessionData.sessionPath);
+                    copyfile(fullfile(this.sessionData.projectPath, 'rawdata', 'CAL_PHANTOM2', 'umapSynth.nii.gz'))
+                    popd(pwd0);
                 otherwise
                     error('mlan:ValueError', 'TracerDirector2.constructUmaps')
             end            
@@ -394,6 +472,93 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
     end
     
 	methods
+        function populateTracerUmapFolder(this)
+            dcm = {};
+            time = [];
+            for g = globFoldersT(fullfile(this.sessionData.sessionPath, 'SCANS', '*/'))
+                try
+                    h = glob(fullfile(g{1}, 'DICOM', '*.dcm'));
+                    info = dicominfo(string(h{1}));
+                    if contains(info.SeriesDescription, 'UMAP')
+                        dcm = [dcm; h{1}]; %#ok<AGROW> 
+                        time_ = timeofday( ...
+                            datetime( ...
+                            [info.AcquisitionDate, info.AcquisitionTime], ...
+                            'InputFormat', 'yyyyMMddHHmmss.SSSSSS'));
+                        time = [time; time_]; %#ok<AGROW> 
+                    end
+                catch
+                end
+            end
+            tbl = table(dcm, time);
+            [~,idx] = min(abs(tbl.time - timeofday(this.sessionData)));
+            dest = fullfile(this.sessionData.scanPath, 'umap');
+            ensuredir(dest);
+            copyfile(tbl.dcm{idx}, dest);
+        end
+        function step0(this)
+            try
+                if ~isfile(this.sessionData.umapSynthOpT1001)
+                    if strcmp(this.sessionData.tracer, 'FDG')
+                        umapType = 'nalgene_large';
+                    else
+                        umapType = 'deep';
+                    end
+                    this.constructUmaps('sessionData', this.sessionData, 'umapType', umapType)
+                end
+                this.populateTracerUmapFolder()
+            catch ME
+                handwarning(ME);
+            end
+        end
+        function step_dynamic(this)
+            try
+                reg = mlan.Ccir993Registry.instance();
+                image = 'jjleewustledu/niftypetr-image:reconstruction20191210';
+                cmd = sprintf( ...
+                    'nvidia-docker run -it --rm -v %s/hardwareumaps/:/hardwareumaps -v %s/:/ProjectsDir %s -p /ProjectsDir/CCIR_00993/derivatives/nipet/%s/%s', ...
+                    getenv('DOCKER_HOME'), reg.projectsDir, image, this.sessionData.sessionFolder, this.sessionData.scanFolder);
+                mlbash(cmd);
+            catch ME
+                handwarning(ME);
+            end
+        end
+        function step_static(this)
+            try
+                reg = mlan.Ccir993Registry.instance();
+                image = 'jjleewustledu/niftypetr-image:reconstruction20191210';
+                cmd = sprintf( ...
+                    'nvidia-docker run -it --rm -v %s/hardwareumaps/:/hardwareumaps -v %s/:/ProjectsDir %s -p /ProjectsDir/CCIR_00993/derivatives/nipet/%s/%s -m createStatic', ...
+                    getenv('DOCKER_HOME'), reg.projectsDir, image, this.sessionData.sessionFolder, this.sessionData.scanFolder);
+                mlbash(cmd);
+            catch ME
+                handwarning(ME);
+            end
+        end
+        function step_phantom(this)
+            try
+                reg = mlan.Ccir993Registry.instance();
+                image = 'jjleewustledu/niftypetr-image:reconstruction20191210';
+                cmd = sprintf( ...
+                    'nvidia-docker run -it --rm -v %s/hardwareumaps/:/hardwareumaps -v %s/:/ProjectsDir %s -p /ProjectsDir/CCIR_00993/derivatives/nipet/%s/%s -m createPhantom', ...
+                    getenv('DOCKER_HOME'), reg.projectsDir, image, this.sessionData.sessionFolder, this.sessionData.scanFolder);
+                mlbash(cmd);
+            catch ME
+                handwarning(ME);
+            end
+        end
+        function step_resolve(this)
+            try
+                if ~this.sessionData.attenuationCorrected
+                    this.instanceConstructResolvedNAC();
+                else
+                    this.instanceConstructResolvedAC();
+                end
+            catch ME
+                handwarning(ME);
+            end
+        end
+
         function this = TracerDirector2(varargin)
  			%% TRACERDIRECTOR2
  			%  @param builder must be an mlpet.TracerBuilder.

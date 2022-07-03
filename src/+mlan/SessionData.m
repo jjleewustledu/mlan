@@ -350,11 +350,7 @@ classdef SessionData < mlnipet.MetabolicSessionData
             [~,idx] = min(abs(d - datetime(this)));
             obj = this.fqfilenameObject(g{idx}, varargin{:});
         end
-    end
 
-    %% PROTECTED
-
-    methods (Access = protected)
       	function this = SessionData(varargin)
  			this = this@mlnipet.MetabolicSessionData(varargin{:});
 

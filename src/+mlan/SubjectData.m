@@ -15,32 +15,46 @@ classdef SubjectData < mlnipet.SubjectData
         function obj = createProjectData(varargin)
             obj = mlan.ProjectData(varargin{:});
         end
-        function sesf = subFolder2sesFolders(subf)
-            %% requires well-defined cell-array this.subjectsJson.
-            %  @param subf is a subject folder.
-            %  @returns first-found non-trivial session folder in the subject folder.
-            
-            import mlan.SubjectData
-            json = mlan.Ccir993Registry.instance().subjectsJson;
-            subjects = fields(json);
-            ss = split(subf, '-');
-            sesf = {};
-            for s = asrow(subjects)
-                subS = json.(s{1});
-                if lstrfind(subS.id, ss{2}) || lstrfind(subS.sid, ss{2})
-                    sesf = [sesf SubjectData.findExperiments(subS, subf)]; %#ok<AGROW>
-                end
-            end 
-        end
         function sesf = subFolder2sesFolder(subf)
             sesf = mlan.SubjectData.subFolder2sesFolders(subf);
             if iscell(sesf)
                 sesf = sesf{1};
             end
         end
+        function sesf = subFolder2sesFolders(subf)
+            %% requires well-defined cell-array this.subjectsJson.
+            %  @param subf is a subject folder.
+            %  @returns first-found non-trivial session folder in the subject folder.
+            
+            this = mlan.SubjectData('subjectFolder', subf);
+            subjects = fields(this.subjectsJson_);
+            ss = split(subf, '-');
+            sesf = {};
+            for s = asrow(subjects)
+                subjectStruct = this.subjectsJson_.(s{1});
+                if lstrfind(subjectStruct.id, ss{2}) || lstrfind(subjectStruct.sid, ss{2})
+                    sesf = [sesf this.findExperiments(subjectStruct, subf)]; %#ok<AGROW>
+                end
+            end 
+        end
     end
 
-	methods        
+	methods
+        function tf   = hasScanFolders(this, ~, sesf)
+            %% legacy folders CCIR_*/derivatives/nipet/ses-E*/HO_DT*.000000-Converted-*/
+            %  @param subf
+            %  @param sesf
+            
+            reg = this.studyRegistry_;
+            if ~isfolder(fullfile(reg.sessionsDir, sesf, ''))
+                tf = false;
+                return
+            end
+            globbed = globFoldersT( ...
+                fullfile(reg.sessionsDir, sesf, '*_DT*.000000-Converted-AC', ''));
+            tf = ~isempty(globbed);
+        end
+
  		function this = SubjectData(varargin)
  			%% SUBJECTDATA
  			%  @param .
