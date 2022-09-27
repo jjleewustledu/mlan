@@ -344,7 +344,7 @@ classdef SessionData < mlnipet.MetabolicSessionData
             %d = NaT(size(g));
 
             for gi = 1:length(g)
-                re = regexp(mybasename(g{gi}), 'sub-S\d{5}_ses-E\d{5}-(?<dt>\d{14})_dumap_\S+', 'names');
+                re = regexp(mybasename(g{gi}), 'sub-S\d+_ses-E\d+-(?<dt>\d{14})_dumap_\S+', 'names');
                 d(gi) = datetime(re.dt, 'InputFormat', 'yyyyMMddHHmmss', 'TimeZone', this.registry.PREFERRED_TIMEZONE); %#ok<AGROW> 
             end
             [~,idx] = min(abs(d - datetime(this)));
