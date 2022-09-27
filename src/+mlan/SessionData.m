@@ -289,11 +289,15 @@ classdef SessionData < mlnipet.MetabolicSessionData
             this = this.setScanFolder(s);
         end
 
-        function g = get.dataPath(this)
+        function g    = get.dataPath(this)
             g = fullfile(this.subjectPath, this.dataFolder, '');
         end
-        function g = get.dataFolder(~)
-            g = 'resampling_restricted';
+        function g    = get.dataFolder(this)
+            g = this.dataFolder_;
+        end
+        function this = set.dataFolder(this, s)
+            assert(istext(s));
+            this.dataFolder_ = s;
         end
 
         function g    = get.bids(this)
@@ -375,6 +379,8 @@ classdef SessionData < mlnipet.MetabolicSessionData
             if isempty(this.projectData_)
                 this.projectData_ = mlan.ProjectData('sessionStr', this.sessionFolder);
             end
+
+            this.dataFolder_ = 'resampling_restricted';
         end
     end
 
@@ -382,6 +388,7 @@ classdef SessionData < mlnipet.MetabolicSessionData
 
     properties (Access = private)
         bids_
+        dataFolder_
         imagingContext_
         registry_
     end
