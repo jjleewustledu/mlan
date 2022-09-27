@@ -150,6 +150,64 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
 
             end
         end
+        function constructPhantomStudy(varargin)
+            %% CONSTRUCTPHANTOMSTUDY constructs objects required for niftypet on calibration phantoms.  
+            %  It provides iterators for project, session and tracer folders on the filesystem.
+            %  Usage:  constructPhantomStudy(<folders expression>)
+            %          e.g.:  >> constructPhantomStudy('CCIR_00123/derivatives/nipet/ses-E00123/FDG_DT20190101.000000-Converted-NAC')    
+            %          e.g.:  >> constructPhantomStudy('CCIR_00123/derivatives/nipet/ses-E0012*/FDG_DT*-Converted-NAC')
+            %  
+            %  @precondition fullfile(sessionsDir, session, 'umaps', '*UMAP*') 
+            %  @param foldersExpr (text)
+            %  @param getstats (logical)
+            %  @param mask (any)
+            %  @return results in fullfile(sessionsDir, session, tracer) 
+            %          for elements of sessionsExpr and tracerExpr.
+
+            import mlan.*; 
+            import mlsystem.DirTool;
+            import mlpet.DirToolTracer;
+
+            ip = inputParser;
+            ip.KeepUnmatched = true;
+            addRequired( ip, 'foldersExpr', @ischar)
+            addParameter(ip, 'getstats', false)
+            addParameter(ip, 'mask', [])
+            parse(ip, varargin{:});
+            ipr = TracerDirector2.adjustIprConstructResolvedStudy(ip.Results);
+
+            registry = mlan.Ccir993Registry.instance();
+            for p = globT(fullfile(registry.projectsDir, ipr.projectsExpr))
+                for s = globT(fullfile(p{1}, 'derivatives', 'nipet', ipr.sessionsExpr))
+                    pwd0 = pushd(s{1});
+                    for t = globT(ipr.tracersExpr)
+                        try
+                            folders = fullfile(s{1}, t{1});
+                            sessd = mlan.SessionData.create(folders, ...
+                                'ignoreFinishMark', true, ...
+                                'reconstructionMethod', 'NiftyPET');
+
+                            fprintf('constructPhantomStudy:\n');
+                            fprintf(['\tsessd.tracerLocation->' sessd.tracerLocation '\n']);
+
+                            warning('off', 'MATLAB:subsassigndimmismatch');
+                            pwd1 = pushd(fullfile(sessd.sessionPath, t{1}));
+                            if ~ipr.getstats
+                                TracerDirector2.constructPhantom('sessionData', sessd);
+                            else
+                                TracerDirector2.constructPhantomStats('sessionData', sessd, 'mask', ipr.mask);
+                            end
+                            popd(pwd1)
+                            warning('on',  'MATLAB:subsassigndimmismatch');
+                        catch ME
+                            dispwarning(ME)
+                            getReport(ME)
+                        end
+                    end
+                    popd(pwd0);
+                end
+            end
+        end
         function constructResolvedStudy(varargin)
             %% CONSTRUCTRESOLVEDSTUDY supports t4_resolve for niftypet.  It provides iterators for 
             %  project, session and tracer folders on the filesystem.  It provides top-level delegation for 
