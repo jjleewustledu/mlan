@@ -1,5 +1,5 @@
 classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
-	%% STUDYREGISTRY 
+	%% CCIR993REGISTRY 
 
 	%  $Revision$
  	%  was created 15-Oct-2015 16:31:41
@@ -8,36 +8,21 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
  	%  and checked into repository /Users/jjlee/Local/src/mlcvl/mlan/src/+mlan.
  	%% It was developed on Matlab 8.5.0.197613 (R2015a) for MACI64.
  	
-    methods (Static)
-        function this = instance(varargin)
-            %% INSTANCE
-            %  @param optional qualifier is char \in {'initialize' ''}
-            
-            ip = inputParser;
-            addOptional(ip, 'qualifier', '', @ischar)
-            parse(ip, varargin{:})
-            
-            persistent uniqueInstance
-            if (strcmp(ip.Results.qualifier, 'initialize'))
-                uniqueInstance = [];
-            end          
-            if (isempty(uniqueInstance))
-                this = mlan.Ccir993Registry();
-                uniqueInstance = this;
-            else
-                this = uniqueInstance;
-            end
-        end
-    end  
-    
     properties
+        atlasTag = '111'
+        blurTag = ''
+        comments = ''
         Ddatetime0 % seconds
         ignoredExperiments = {}
+        noclobber = true
+        numberNodes
         projectFolder = 'CCIR_00993'
         referenceTracer = 'HO'
         T = 10 % sec at the start of artery_interpolated used for model but not described by scanner frames
         tracerList = {'oc' 'oo' 'ho'}
         umapType = 'deep'
+        voxelTime = 60 % sec
+        wallClockLimit = 168*3600 % sec
     end
     
     properties (Dependent)
@@ -49,10 +34,7 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
         tBuffer
     end
     
-    methods
-        
-        %% GET
-        
+    methods % GET        
         function g = get.projectsDir(~)
             if contains(hostname, 'precuneal')
                 g = fullfile(getenv('HOME'), 'Singularity');
@@ -79,9 +61,9 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
         function g = get.tBuffer(this)
             g = max(0, -this.Ddatetime0) + this.T;
         end
+    end
 
-        %%
-
+    methods
         function dt = ses2dt(this, ses)
             ses = strsplit(ses, '-');
             ses = ses{2};
@@ -174,6 +156,19 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
         end
     end
     
+    methods (Static)
+        function this = instance()
+            persistent uniqueInstance
+            if (isempty(uniqueInstance))
+                this = mlan.Ccir993Registry();
+                uniqueInstance = this;
+            else
+                this = uniqueInstance;
+            end
+        end
+    end  
+    
+    
     %% PRIVATE
     
     properties (Access = private)
@@ -181,8 +176,7 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
     end
 
 	methods (Access = private)		  
- 		function this = Ccir993Registry(varargin)
-            this = this@mlnipet.StudyRegistry(varargin{:});
+ 		function this = Ccir993Registry()
  		end
     end 
 

@@ -1,4 +1,4 @@
-classdef SubjectData < mlnipet.SubjectData
+classdef SubjectData < mlnipet.SubjectData2022
 	%% SUBJECTDATA
 
 	%  $Revision$
@@ -59,7 +59,7 @@ classdef SubjectData < mlnipet.SubjectData
  			%% SUBJECTDATA
  			%  @param .
 
- 			this = this@mlnipet.SubjectData(varargin{:});
+ 			this = this@mlnipet.SubjectData2022(varargin{:});
 
             this.studyRegistry_ = mlan.Ccir993Registry.instance;
             this.subjectsJson_ = this.studyRegistry_.subjectsJson;

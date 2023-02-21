@@ -4,7 +4,7 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
 	%  $Revision$
  	%  was created 17-Nov-2018 10:26:34 by jjlee,
  	%  last modified $LastChangedDate$ and placed into repository /Users/jjlee/MATLAB-Drive/mlan/src/+mlan.
- 	 %% It was developed on Matlab 9.4.0.813654 (R2018a) for MACI64.  Copyright 2018 John Joowon Lee.
+ 	%% It was developed on Matlab 9.4.0.813654 (R2018a) for MACI64.  Copyright 2018 John Joowon Lee.
  	
     methods (Static)
         function ic2 = addMirrorUmap(ic2, sessd)
@@ -457,7 +457,7 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
             %% Constructs single volume umapSynth_on_{T1001,T1001_b43,TRIO_Y_NDC_[123]{3}}.4dfp.*
             %  in sessionData.scanPath for ~sessionData.attenuationCorrected.
             %  Args:  
-            %      sessionData (mlpipeline.ISessionData): passed to builder.
+            %      sessionData (mlpipeline.{ISessionData,ImagingData}): passed to builder.
             %      umapType (text): default is from mlan.Ccir993Registry.
             %      see also mlan.DeepUmapBuilder, mlfourdfp.{MRACHiresUmapBuilder, PseudoCTBuilder}
             
@@ -466,7 +466,7 @@ classdef TracerDirector2 < mlnipet.CommonTracerDirector
 
             ip = inputParser;
             ip.KeepUnmatched = true;
-            addParameter(ip, 'sessionData', [], @(x) isa(x, 'mlpipeline.ISessionData'))
+            addParameter(ip, 'sessionData', []);
             addParameter(ip, 'umapType', mlan.Ccir993Registry.instance().umapType, @istext)
             parse(ip, varargin{:})  
             ipr = ip.Results;

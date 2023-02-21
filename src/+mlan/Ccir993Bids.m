@@ -9,26 +9,16 @@ classdef Ccir993Bids < handle & mlpipeline.IBids
 	methods (Static)
         function create_bids_folders()
             this = mlan.Ccir993Bids();
-            if ~isfolder(this.projectPath)
-                mkdir(this.projectPath)
-            end
-            if ~isfolder(this.sourcedataPath)
-                mkdir(this.sourcedataPath)
-            end
-            if ~isfolder(this.derivativesPath)
-                mkdir(this.derivativesPath)
-            end
+            ensuredir(this.projectPath)
+            ensuredir(this.sourcedataPath)
+            ensuredir(this.derivativesPath)
 
             j = this.json_;
             for subf = asrow(j.subjectFolders)
                 sourceSubPath = fullfile(this.sourcedataPath, subf{1});
-                if ~isfolder(sourceSubPath)
-                    mkdir(sourceSubPath)
-                end
+                ensuredir(sourceSubPath)
                 derivSubPath = fullfile(this.derivativesPath, subf{1});
-                if ~isfolder(derivSubPath)
-                    mkdir(derivSubPath)
-                end
+                ensuredir(derivSubPath)
             end
         end
         function create_deepumap_folders()

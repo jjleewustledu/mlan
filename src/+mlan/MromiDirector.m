@@ -26,7 +26,7 @@ classdef MromiDirector
  			%  Usage:  this = MromiDirector()
 
  			ip = inputParser;
-            addParameter(ip, 'sessionData', [], @(x) isa(x, 'mlpipeline.ISessionData'));
+            addParameter(ip, 'sessionData', []);
             parse(ip, varargin{:});
             
             this.sessionData_ = ip.Results.sessionData;
@@ -40,7 +40,7 @@ classdef MromiDirector
         end
         function obs  = constructPetObsMap(this, varargin)
             ip = inputParser;
-            addParameter(ip, 'sessionData', this.sessionData, @(x) isa(x, 'mlpipeline.ISessionData'));
+            addParameter(ip, 'sessionData', this.sessionData);
             parse(ip, varargin{:}); 
             this.sessionData_ = ip.Results.sessionData;
             
@@ -51,7 +51,7 @@ classdef MromiDirector
         function cbf  = constructCbfMap(this, varargin)
             import mlpet.*;
             ip = inputParser;
-            addParameter(ip, 'sessionData', this.sessionData, @(x) isa(x, 'mlpipeline.ISessionData'));
+            addParameter(ip, 'sessionData', this.sessionData);
             parse(ip, varargin{:});            
             this.sessionData_ = ip.Results.sessionData;
             this.sessionData_.tracer = 'HO';
@@ -77,5 +77,5 @@ classdef MromiDirector
     end
 
 	%  Created with Newcl by John J. Lee after newfcn by Frank Gonzalez-Morphy
- end
+end
 
