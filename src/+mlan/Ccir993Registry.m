@@ -1,6 +1,6 @@
 classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
 	%% CCIR993REGISTRY 
-
+    %
 	%  $Revision$
  	%  was created 15-Oct-2015 16:31:41
  	%  by jjlee,
@@ -9,57 +9,22 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
  	%% It was developed on Matlab 8.5.0.197613 (R2015a) for MACI64.
  	
     properties
-        atlasTag = '111'
-        blurTag = ''
-        comments = ''
-        Ddatetime0 % seconds
-        ignoredExperiments = {}
-        noclobber = true
-        numberNodes
-        projectFolder = 'CCIR_00993'
-        referenceTracer = 'HO'
-        T = 10 % sec at the start of artery_interpolated used for model but not described by scanner frames
-        tracerList = {'oc' 'oo' 'ho'}
-        umapType = 'deep'
-        voxelTime = 60 % sec
-        wallClockLimit = 168*3600 % sec
+        projectsDir
+        projectFolder
+        snakes
     end
     
     properties (Dependent)
-        projectsDir
-        rawdataDir
-        sessionsDir
-        subjectsDir	
         subjectsJson
-        tBuffer
     end
     
-    methods % GET        
-        function g = get.projectsDir(~)
-            if contains(hostname, 'precuneal')
-                g = fullfile(getenv('HOME'), 'Singularity');
-            else
-                g = '/data/anlab/jjlee/Singularity';
-            end
-        end
-        function x = get.rawdataDir(this)
-            x = fullfile(this.projectsDir, this.projectFolder, 'rawdata');
-        end
-        function g = get.sessionsDir(this)
-            g = fullfile(this.projectsDir, this.projectFolder, 'derivatives', 'nipet', '');
-        end
-        function g = get.subjectsDir(this)
-            g = fullfile(this.projectsDir, this.projectFolder, 'derivatives', 'resolve', '');
-        end
+    methods % GET
         function g = get.subjectsJson(this)
             if isempty(this.subjectsJson_)
                 this.subjectsJson_ = jsondecode( ...
                     fileread(fullfile(this.projectsDir, this.projectFolder, 'constructed_20191108.json')));
             end
             g = this.subjectsJson_;
-        end
-        function g = get.tBuffer(this)
-            g = max(0, -this.Ddatetime0) + this.T;
         end
     end
 
@@ -116,6 +81,7 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
                 end
             end
         end
+        
         function sub = x0993_to_sub(this, x0993)
             %  Args:
             %      x0993 (text,numeric):  e.g. 2 '2' "002" "x0993_002" "x993_011"
@@ -157,8 +123,17 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
     end
     
     methods (Static)
-        function this = instance()
+        function t = consoleTaus(tracer)
+            t = mlan.Ccir993Scan.consoleTaus(tracer);
+        end 
+        function this = instance(reset)
+            arguments
+                reset = []
+            end
             persistent uniqueInstance
+            if ~isempty(reset)
+                uniqueInstance = [];
+            end
             if (isempty(uniqueInstance))
                 this = mlan.Ccir993Registry();
                 uniqueInstance = this;
@@ -170,13 +145,21 @@ classdef (Sealed) Ccir993Registry < handle & mlnipet.StudyRegistry
     
     
     %% PRIVATE
-    
-    properties (Access = private)
-        subjectsJson_
-    end
 
 	methods (Access = private)		  
  		function this = Ccir993Registry()
+            this.atlasTag = 'on_T1w';
+            this.projectsDir = getenv('SINGULARITY_HOME');
+            this.projectFolder = 'CCIR_00993';
+            this.reconstructionMethod = 'e7';
+            this.referenceTracer = 'HO';
+            this.tracerList = {'oc' 'oo' 'ho'};
+            this.T = 0;
+            this.umapType = 'deep';
+
+            this.snakes.contractBias = 0.2;
+            this.snakes.iterations = 80;
+            this.snakes.smoothFactor = 0;
  		end
     end 
 

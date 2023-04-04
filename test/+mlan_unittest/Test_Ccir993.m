@@ -48,6 +48,9 @@ classdef Test_Ccir993 < matlab.unittest.TestCase
                 'subjectsExpr', basename(this.sub_dir));
             popd(pwd0);
         end
+        function test_registry(this)
+            this.verifyNotEmpty(mlan.Ccir993Registry.instance())
+        end
     end
     
     methods (TestClassSetup)
@@ -57,9 +60,9 @@ classdef Test_Ccir993 < matlab.unittest.TestCase
             this.ses_dir = fullfile(this.prj_dir, 'derivatives', 'nipet', 'ses-E06418', '');
 %            this.sub_dir = fullfile(this.prj_dir, 'derivatives', 'resolve', 'sub-S05516', '');
 %            this.ses_dir = fullfile(this.prj_dir, 'derivatives', 'nipet', 'ses-E19850', '');
-            this.testObj_ = mlan.Ccir993( ...
-                'subject_dir', this.sub_dir, ...
-                'session_dir', this.ses_dir);
+%             this.testObj_ = mlan.Ccir993( ...
+%                 'subject_dir', this.sub_dir, ...
+%                 'session_dir', this.ses_dir);
         end
     end
     

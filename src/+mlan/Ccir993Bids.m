@@ -1,4 +1,4 @@
-classdef Ccir993Bids < handle & mlpipeline.IBids
+classdef Ccir993Bids < handle & mlsiemens.BiographBids
 	%% CCIR993BIDS  
 
 	%  $Revision$
@@ -6,6 +6,157 @@ classdef Ccir993Bids < handle & mlpipeline.IBids
  	%  last modified $LastChangedDate$ and placed into repository /Users/jjlee/MATLAB-Drive/mlan/src/+mlan.
  	%% It was developed on Matlab 9.11.0.1769968 (R2021b) for MACI64.  Copyright 2021 John Joowon Lee.
  	
+    properties
+        flair_toglob
+        pet_dyn_toglob
+        pet_static_toglob
+        t1w_toglob
+        t2w_toglob
+        tof_toglob
+    end
+
+    properties (Constant)
+        BIDS_MODALITIES = {'anat' 'fmap' 'func' 'mri' 'pet'}
+        DLICV_TAG = 'DLICV'
+        PROJECT_FOLDER = 'CCIR_00993'
+        SURFER_VERSION = '5.3-patch'
+    end
+
+    properties (Dependent)
+        dixonumapPath	
+
+        atlas_ic
+        dlicv_ic
+        T1_ic % FreeSurfer
+        t1w_ic
+        tof_ic
+        tof_mask_ic
+        wmparc_ic % FreeSurfer
+    end
+
+	methods % GET
+        function g = get.dixonumapPath(this)
+            g = fullfile(this.projectPath, 'staging', 'CCIR_00993_DL_DIXON_umap', '');
+        end
+
+        function g = get.atlas_ic(~)
+            g = mlfourd.ImagingContext2( ...
+                fullfile(getenv('FSLDIR'), 'data', 'standard', 'MNI_T1_1mm.nii.gz'));
+        end
+        function g = get.dlicv_ic(this)
+            if ~isempty(this.dlicv_ic_)
+                g = copy(this.dlicv_ic_);
+                return
+            end
+            this.dlicv_ic_ = mlfourd.ImagingContext2( ...
+                sprintf('%s_%s.nii.gz', this.t1w_ic.fqfileprefix, this.DLICV_TAG));
+            if ~isfile(this.dlicv_ic_.fqfn)
+                try
+                    r = '';
+                    [~,r] = this.build_dlicv(this.t1w_ic, this.dlicv_ic_);
+                    assert(isfile(this.dlicv_ic_))
+                catch ME
+                    disp(r)
+                    handexcept(ME)
+                end
+            end
+            g = copy(this.dlicv_ic_);
+        end
+        function g = get.T1_ic(this)
+            if ~isempty(this.T1_ic_)
+                g = copy(this.T1_ic_);
+                return
+            end
+            fn = fullfile(this.mriPath, 'T1.mgz');
+            assert(isfile(fn))
+            this.T1_ic_ = mlfourd.ImagingContext2(fn);
+            this.T1_ic_.selectNiftiTool();
+            this.T1_ic_.filepath = this.anatPath;
+            this.T1_ic_.save();
+            g = copy(this.T1_ic_);
+        end
+        function g = get.t1w_ic(this)
+            if ~isempty(this.t1w_ic_)
+                g = copy(this.t1w_ic_);
+                return
+            end
+            globbed = globT(this.t1w_toglob);
+            globbed = globbed(~contains(globbed, this.DLICV_TAG));
+            fn = globbed{end};
+            fn = fullfile(this.anatPath, strcat(mybasename(fn), '_orient-std.nii.gz'));
+            if ~isfile(fn)
+                this.build_orientstd(this.t1w_toglob);
+            end
+            this.t1w_ic_ = mlfourd.ImagingContext2(fn);
+            g = copy(this.t1w_ic_);
+        end
+        function g = get.tof_ic(this)
+            if ~isempty(this.tof_ic_)
+                g = copy(this.tof_ic_);
+                return
+            end
+            g = globT(fullfile(this.anatPath, '*TOF*.nii.gz'));
+            assert(~isempty(g))
+            fn = g{end};
+            assert(isfile(fn))
+            this.tof_ic_ = mlfourd.ImagingContext2(fn);
+            this.tof_ic_.selectNiftiTool();
+            this.tof_ic_.filepath = this.anatPath;
+            this.tof_ic_.fileprefix = 'tof';
+            this.tof_ic_.save();
+            g = copy(this.tof_ic_);
+        end
+        function g = get.tof_mask_ic(this)
+            if ~isempty(this.tof_mask_ic_)
+                g = copy(this.tof_mask_ic_);
+                return
+            end
+            tmp_ = this.tof_ic.blurred(6);
+            tmp_ = tmp_.thresh(30);
+            tmp_ = tmp_.binarized();
+            this.tof_mask_ic_ = tmp_;
+            g = copy(this.tof_mask_ic_);
+        end
+        function g = get.wmparc_ic(this)
+            if ~isempty(this.wmparc_ic_)
+                g = copy(this.wmparc_ic_);
+                return
+            end
+            fn = fullfile(this.mriPath, 'wmparc.mgz');
+            assert(isfile(fn))
+            this.wmparc_ic_ = mlfourd.ImagingContext2(fn);
+            this.wmparc_ic_.selectNiftiTool();
+            this.wmparc_ic_.filepath = this.anatPath;
+            this.wmparc_ic_.save();
+            g = copy(this.wmparc_ic_);
+        end
+    end
+
+    methods
+ 		function this = Ccir993Bids(varargin)
+            %  @param destinationPath will receive outputs.  Must specify project ID & subject ID.
+            %  @projectPath belongs to a CCIR project.
+            %  @subjectFolder is the BIDS-adherent string for subject identity.
+
+            this = this@mlsiemens.BiographBids(varargin{:})
+            if isempty(this.subjectFolder_)
+                this.parseDestinationPath(this.destinationPath_)
+            end
+
+            this.pet_dyn_toglob = fullfile(this.sourcePetPath, 'sub-*_trc-*_proc-dyn*_pet.nii.gz');
+            this.pet_static_toglob = fullfile(this.sourcePetPath, 'sub-*_trc-*_proc-static*_pet.nii.gz');
+            this.t1w_toglob = fullfile(this.sourceAnatPath, 'sub-*MPRAGE_T1_SAGITTAL*.nii.gz');
+
+            this.json_ = mlan.Ccir993Json();        
+        end
+        function j = json(this)
+            j = this.json_;
+        end
+        function r = registry(~)
+            r = mlan.Ccir993Registry.instance();
+        end
+    end 
+
 	methods (Static)
         function create_bids_folders()
             this = mlan.Ccir993Bids();
@@ -13,8 +164,7 @@ classdef Ccir993Bids < handle & mlpipeline.IBids
             ensuredir(this.sourcedataPath)
             ensuredir(this.derivativesPath)
 
-            j = this.json_;
-            for subf = asrow(j.subjectFolders)
+            for subf = asrow(this.json.subjectFolders)
                 sourceSubPath = fullfile(this.sourcedataPath, subf{1});
                 ensuredir(sourceSubPath)
                 derivSubPath = fullfile(this.derivativesPath, subf{1});
@@ -64,9 +214,6 @@ classdef Ccir993Bids < handle & mlpipeline.IBids
                 end
             end
             popd(pwd0);
-        end
-        function [s,r] = dcm2niix(varargin)
-            [s,r] = mlpipeline.Bids.dcm2niix(varargin{:});
         end
         function d = ensure_norm_dir(d, info)
             if ~isfolder(fullfile(fileparts(d), 'LM'))
@@ -144,172 +291,10 @@ classdef Ccir993Bids < handle & mlpipeline.IBids
         end        
     end
 
-    properties (Constant)
-        PROJECT_FOLDER = 'CCIR_00993'
-        SURFER_VERSION = '5.3-patch'
-    end
-
-    properties (Dependent)
-        anatPath
-        derivAnatPath
-        derivativesPath
-        derivPetPath
-        destinationPath 	
-        dixonumapPath	
-        mriPath
-        petPath
-        projectPath
-        rawdataPath
-        sourcedataPath
-        sourceAnatPath
-        sourcePetPath
-        subjectFolder
-
-        T1_ic % FreeSurfer
-        t1w_ic
-        tof_ic
-        tof_mask_ic
-        wmparc_ic % FreeSurfer
-    end
-
-	methods
-
-        %% GET
-
-        function g = get.anatPath(this)
-            g = this.derivAnatPath;
-        end
-        function g = get.derivAnatPath(this)
-            g = fullfile(this.derivativesPath, this.subjectFolder, 'anat', '');
-        end
-        function g = get.derivativesPath(this)
-            g = this.registry_.subjectsDir;
-        end
-        function g = get.derivPetPath(this)
-            g = fullfile(this.derivativesPath, this.subjectFolder, 'pet', '');
-        end
-        function g = get.destinationPath(this)
-            g = this.destinationPath_;
-        end
-        function g = get.dixonumapPath(this)
-            g = fullfile(this.projectPath, 'staging', 'CCIR_00993_DL_DIXON_umap', '');
-        end
-        function g = get.mriPath(this)
-            g = fullfile(this.registry_.sessionsDir, ...
-                this.registry_.sub2ses(this.subjectFolder), 'mri', '');
-        end
-        function g = get.petPath(this)
-            g = this.derivPetPath;
-        end
-        function g = get.projectPath(this)
-            g = this.projectPath_;
-        end
-        function g = get.rawdataPath(this)
-            g = fullfile(this.projectPath, 'rawdata', '');
-        end
-        function g = get.sourcedataPath(this)
-            g = fullfile(this.projectPath, 'sourcedata', '');
-        end
-        function g = get.sourceAnatPath(this)
-            g = fullfile(this.sourcedataPath, this.subjectFolder, 'anat', '');
-        end
-        function g = get.sourcePetPath(this)
-            g = fullfile(this.sourcedataPath, this.subjectFolder, 'pet', '');
-        end
-        function g = get.subjectFolder(this)
-            g = this.subjectFolder_;
-        end
-
-        function g = get.T1_ic(this)
-            g = this.t1w_ic;
-        end
-        function g = get.t1w_ic(this)
-            if ~isempty(this.t1w_ic_)
-                g = copy(this.t1w_ic_);
-                return
-            end
-            fn = fullfile(this.anatPath, 'T1001.nii.gz');
-            assert(isfile(fn))
-            this.t1w_ic_ = mlfourd.ImagingContext2(fn);
-            this.t1w_ic_.selectNiftiTool();
-            this.t1w_ic_.filepath = this.anatPath;
-            this.t1w_ic_.save();
-            g = copy(this.t1w_ic_);
-        end
-        function g = get.tof_ic(this)
-            if ~isempty(this.tof_ic_)
-                g = copy(this.tof_ic_);
-                return
-            end
-            g = globT(fullfile(this.anatPath, '*TOF*.nii.gz'));
-            assert(~isempty(g))
-            fn = g{end};
-            assert(isfile(fn))
-            this.tof_ic_ = mlfourd.ImagingContext2(fn);
-            this.tof_ic_.selectNiftiTool();
-            this.tof_ic_.filepath = this.anatPath;
-            this.tof_ic_.fileprefix = 'tof';
-            this.tof_ic_.save();
-            g = copy(this.tof_ic_);
-        end
-        function g = get.tof_mask_ic(this)
-            if ~isempty(this.tof_mask_ic_)
-                g = copy(this.tof_mask_ic_);
-                return
-            end
-            tmp_ = this.tof_ic.blurred(6);
-            tmp_ = tmp_.thresh(30);
-            tmp_ = tmp_.binarized();
-            this.tof_mask_ic_ = tmp_;
-            g = copy(this.tof_mask_ic_);
-        end
-        function g = get.wmparc_ic(this)
-            if ~isempty(this.wmparc_ic_)
-                g = copy(this.wmparc_ic_);
-                return
-            end
-            fn = fullfile(this.anatPath, 'wmparc.nii.gz');
-            assert(isfile(fn))
-            this.wmparc_ic_ = mlfourd.ImagingContext2(fn);
-            this.wmparc_ic_.selectNiftiTool();
-            this.wmparc_ic_.filepath = this.anatPath;
-            this.wmparc_ic_.save();
-            g = copy(this.wmparc_ic_);
-        end
-        
-        %%
-
- 		function this = Ccir993Bids(varargin)
-            %  @param destinationPath will receive outputs.  Must specify project ID & subject ID.
-            %  @projectPath belongs to a CCIR project.
-            %  @subjectFolder is the BIDS-adherent string for subject identity.
-
-            ip = inputParser;
-            ip.KeepUnmatched = true;
-            addParameter(ip, 'destinationPath', pwd, @isfolder)
-            addParameter(ip, 'projectPath', fullfile(getenv('SINGULARITY_HOME'), this.PROJECT_FOLDER), @istext)
-            addParameter(ip, 'subjectFolder', '', @istext)
-            parse(ip, varargin{:})
-            ipr = ip.Results;
-            this.destinationPath_ = ipr.destinationPath;
-            this.projectPath_ = ipr.projectPath;
-            this.subjectFolder_ = ipr.subjectFolder;
-            if isempty(this.subjectFolder_)
-                this.parseDestinationPath(this.destinationPath_)
-            end
-            this.json_ = mlan.Ccir993Json();
-            this.registry_ = mlan.Ccir993Registry.instance();
-        end
-    end 
-
     %% PROTECTED
 
     properties (Access = protected)
-        destinationPath_
         json_
-        projectPath_
-        registry_
-        subjectFolder_
     end
 
     methods (Access = protected)
