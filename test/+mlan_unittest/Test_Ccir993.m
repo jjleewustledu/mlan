@@ -48,6 +48,18 @@ classdef Test_Ccir993 < matlab.unittest.TestCase
                 'subjectsExpr', basename(this.sub_dir));
             popd(pwd0);
         end
+        function test_create_cmro2(this)
+            fqfn = fullfile(this.ses_dir, 'pet', 'sub-S03292-N12_ses-20191031104058_trc-ho_proc-dyn-r2-op-frame55_pet.nii.gz');            
+            mlkinetics.KineticsKit.create_cmro2( ...
+                ["ccir993", "nifti", "mmr", "15o"], ...
+                fqfn, ...
+                ["timedispersed", "twilite", "wmparc"])
+        end
+        function test_BidsKit(this)
+            fqfn = fullfile(this.ses_dir, 'pet', 'sub-S03292-N12_ses-20191031104058_trc-ho_proc-dyn-r2-op-frame55_pet.nii.gz');
+            bk = mlkinetics.BidsKit(proto_bids_med=mlan.Ccir993Mediator(fqfn));
+            disp(bk.make_bids_med())
+        end
         function test_registry(this)
             this.verifyNotEmpty(mlan.Ccir993Registry.instance())
         end
@@ -55,20 +67,14 @@ classdef Test_Ccir993 < matlab.unittest.TestCase
     
     methods (TestClassSetup)
         function setupCcir993(this)
-            this.prj_dir = '/data/anlab/jjlee/Singularity/CCIR_00993';
-            this.sub_dir = fullfile(this.prj_dir, 'derivatives', 'resolve', 'sub-S02951', '');
-            this.ses_dir = fullfile(this.prj_dir, 'derivatives', 'nipet', 'ses-E06418', '');
-%            this.sub_dir = fullfile(this.prj_dir, 'derivatives', 'resolve', 'sub-S05516', '');
-%            this.ses_dir = fullfile(this.prj_dir, 'derivatives', 'nipet', 'ses-E19850', '');
-%             this.testObj_ = mlan.Ccir993( ...
-%                 'subject_dir', this.sub_dir, ...
-%                 'session_dir', this.ses_dir);
+            this.prj_dir = fullfile(getenv('SINGULARITY_HOME'), 'CCIR_00993');
+            this.sub_dir = fullfile(this.prj_dir, 'derivatives', 'sub-S03292-N12');
+            this.ses_dir = fullfile(this.sub_dir, 'ses-20191031');
         end
     end
     
     methods (TestMethodSetup)
         function setupCcir993Test(this)
-            this.testObj = this.testObj_;
             this.addTeardown(@this.cleanTestMethod)
         end
     end

@@ -1,4 +1,4 @@
-classdef Ccir993Scan < mlpipeline.ScanData2 & handle
+classdef Ccir993Scan < handle & mlpipeline.ScanData2
     %% line1
     %  line2
     %  
